@@ -1,9 +1,9 @@
-name: Update CCcam Servers
+name: Daily CCcam Update
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # يشتغل كل 6 ساعات
-  workflow_dispatch: # يسمح لك بتشغيله يدوياً
+    - cron: '0 */6 * * *' # كايخدم بوحدو كل 6 سوايع
+  workflow_dispatch:      # كيخليك تخدمو يدويا وقتما بغيتي
 
 jobs:
   build:
@@ -18,16 +18,15 @@ jobs:
           python-version: '3.9'
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install requests
 
-      - name: Run scraper
+      - name: Run Scraper
         run: python scraper.py
 
-      - name: Commit and push changes
+      - name: Commit and Push
         run: |
-          git config --global user.name "Badr-cx"
-          git config --global user.email "badr@example.com"
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
           git add CCcam.cfg
-          git commit -m "Update servers" || exit 0
+          git commit -m "Update CCcam.cfg - $(date)"
           git push
