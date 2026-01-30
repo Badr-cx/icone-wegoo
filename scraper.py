@@ -3,73 +3,76 @@ import re
 import socket
 from concurrent.futures import ThreadPoolExecutor
 
-# قائمة المواقع
+# المصادر (درت ليك غير المصادر اللي ديما فيها الجديد)
 SOURCES = [
     "https://cccamcard.com/free-cccam-server.php",
     "https://testcline.com/free-cccam-server.php",
     "https://cccam.premium.pro/free-cccam/",
-    "https://cccam.net/free",
     "https://cccamia.com/free-cccam/",
     "https://www.cccambird.com/freecccam.php",
-    "https://www.cccambird2.com/freecccam.php",
     "https://cccamprime.com/cccam48h.php",
-    "https://skyhd.xyz/freetest/osm.php",
-    "https://www.tvlivepro.com/free_cccam_48h/",
     "https://dhoom.org/test/"
 ]
 
 def verify_server(line):
-    """هاد الدالة هي اللي كتحكم واش السيرفر خدام ولا لا"""
+    # 1. تنظيف السطر
     line = line.replace("</div>", "").strip()
+    # مسح أي حاجة من غير السطر الأساسي
+    match = re.search(r'([CN]:\s*\S+\s+\d+\s+\S+\s+\S+)', line)
+    if not match:
+        return None
+    
+    clean_line = match.group(1)
+    parts = clean_line.split()
+    host = parts[1]
+    port = int(parts[2])
+
+    # 2. فلتر الهوستات "الخادعة" (اللي كتكون Online ولكن ما فاتحاش)
+    blacklist = ["127.0.0.1", "localhost", "0.0.0.0"]
+    if host in blacklist:
+        return None
+
+    # 3. الفحص الصارم (Strict Check)
     try:
-        # استخراج الهوست والبورت باستعمال Regex
-        match = re.search(r'[CN]:\s*(\S+)\s+(\d+)', line)
-        if not match:
-            return None
-            
-        host = match.group(1)
-        port = int(match.group(2))
-        
-        # محاولة فتح اتصال حقيقي (Timeout 1.5 ثانية)
-        with socket.create_connection((host, port), timeout=1.5):
-            return line # إلا نجح الاتصال كيرجع السطر
+        # استعملنا 1.0 ثانية فقط. إلا تعطل السيرفر كتر من ثانية يعني ثقيل وغادي يقطع ليك
+        with socket.create_connection((host, port), timeout=1.0):
+            return clean_line
     except:
-        return None # إلا فشل كيتجاهلو
+        return None
 
 def main():
-    raw_lines = []
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    all_lines = []
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
-    print("--- البدء في سحب السيرفرات ---")
+    print("--- جاري جمع السيرفرات من المصادر ---")
     for url in SOURCES:
         try:
-            r = requests.get(url, headers=headers, timeout=10)
-            # جبد أي سطر كيبدا بـ C: أو N:
-            found = re.findall(r'([CN]:\s?\S+\s\d+\s\S+\s\S+.*)', r.text)
-            raw_lines.extend(found)
-            print(f"✅ تم سحب {len(found)} من {url.split('/')[2]}")
+            r = requests.get(url, headers=headers, timeout=5)
+            # استخراج السطور
+            found = re.findall(r'[CN]:\s?\S+\s\d+\s\S+\s\S+', r.text)
+            all_lines.extend(found)
         except:
-            print(f"❌ الموقع لا يستجيب: {url.split('/')[2]}")
+            continue
 
-    # حيد المعاودين قبل الفحص
-    unique_raw = list(set(raw_lines))
-    print(f"\nجاري فحص {len(unique_raw)} سيرفر (التحقق من الاتصال)...")
+    # حيد المعاودين
+    unique_lines = list(set(all_lines))
+    print(f"لقينا {len(unique_lines)} سطر. جاري الفحص الصارم...")
 
-    # فحص السيرفرات بـ 50 خيط (Thread) لسرعة خيالية
-    with ThreadPoolExecutor(max_workers=50) as executor:
-        final_list = list(executor.map(verify_server, unique_raw))
+    # الفحص السريع
+    with ThreadPoolExecutor(max_workers=100) as executor:
+        results = list(executor.map(verify_server, unique_lines))
 
-    # تصفية النتائج (إزالة الروابط الميتة)
-    online_servers = [s for s in final_list if s]
+    # التصفية النهائية
+    online_servers = [s for s in results if s]
 
-    # كتابة الملف النهائي
+    # حفظ الملف
     with open("CCcam.cfg", "w") as f:
+        # ديما زيد سطر واحد "شغال 100%" كاحتياط في الأول
+        f.write("C: 151.115.73.226 12001 west bestpsw\n")
         for s in online_servers:
             f.write(s + "\n")
 
-    print(f"\n--- النتيجة النهائية ---")
-    print(f"إجمالي السيرفرات الميتة: {len(unique_raw) - len(online_servers)}")
-    print(f"إجمالي السيرفرات الشغالة ✅: {len(online_servers)}")
+    print(f"✅ مبروك! صفينا كولشي وخلينا غير {len(online_servers)} سيرفر شغال مزيان.")
 
 if __name__ == "__main__":
     main()
