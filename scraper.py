@@ -3,76 +3,55 @@ import re
 import socket
 from concurrent.futures import ThreadPoolExecutor
 
-# المصادر (درت ليك غير المصادر اللي ديما فيها الجديد)
-SOURCES = [
-    "https://cccamcard.com/free-cccam-server.php",
-    "https://testcline.com/free-cccam-server.php",
-    "https://cccam.premium.pro/free-cccam/",
-    "https://cccamia.com/free-cccam/",
-    "https://www.cccambird.com/freecccam.php",
-    "https://cccamprime.com/cccam48h.php",
-    "https://dhoom.org/test/"
-]
+# الرابط ديالك باش السكريبت يقرا منو نيشان
+RAW_URL = "https://raw.githubusercontent.com/Badr-cx/icone-wegoo/refs/heads/main/CCcam.cfg"
 
-def verify_server(line):
-    # 1. تنظيف السطر
-    line = line.replace("</div>", "").strip()
-    # مسح أي حاجة من غير السطر الأساسي
-    match = re.search(r'([CN]:\s*\S+\s+\d+\s+\S+\s+\S+)', line)
-    if not match:
+def strict_check(line):
+    # تنظيف السطر من أي شوائب
+    line = line.strip()
+    if not line or not (line.startswith('C:') or line.startswith('N:')):
         return None
     
-    clean_line = match.group(1)
-    parts = clean_line.split()
-    host = parts[1]
-    port = int(parts[2])
-
-    # 2. فلتر الهوستات "الخادعة" (اللي كتكون Online ولكن ما فاتحاش)
-    blacklist = ["127.0.0.1", "localhost", "0.0.0.0"]
-    if host in blacklist:
-        return None
-
-    # 3. الفحص الصارم (Strict Check)
     try:
-        # استعملنا 1.0 ثانية فقط. إلا تعطل السيرفر كتر من ثانية يعني ثقيل وغادي يقطع ليك
-        with socket.create_connection((host, port), timeout=1.0):
-            return clean_line
+        # تقطيع السطر للحصول على الهوست والبورت
+        parts = line.split()
+        host = parts[1]
+        port = int(parts[2].replace(',', ''))
+        
+        # فحص الاتصال: التوقيت (Timeout) رديناه 0.8 ثانية
+        # السيرفر اللي كيتعطل كتر من هاد الوقت غيتقطع فالماتشات، أحسن نمسحوه
+        with socket.create_connection((host, port), timeout=0.8) as sock:
+            return line
     except:
         return None
 
 def main():
-    all_lines = []
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    print("--- جاري سحب الملف من GitHub وفحصه ---")
+    try:
+        r = requests.get(RAW_URL, timeout=10)
+        # استخراج السطور اللي باديين بـ C: أو N:
+        lines = re.findall(r'([CN]:\s?\S+\s\d+\s\S+\s\S+.*)', r.text)
+    except:
+        print("❌ مقدرتش نوصل للرابط!")
+        return
 
-    print("--- جاري جمع السيرفرات من المصادر ---")
-    for url in SOURCES:
-        try:
-            r = requests.get(url, headers=headers, timeout=5)
-            # استخراج السطور
-            found = re.findall(r'[CN]:\s?\S+\s\d+\s\S+\s\S+', r.text)
-            all_lines.extend(found)
-        except:
-            continue
+    # إزالة السطور المعاودة (بزاف عندك فالموقع)
+    unique_lines = list(set(lines))
+    print(f"لقيت {len(unique_lines)} سطر فريد. جاري التصفية...")
 
-    # حيد المعاودين
-    unique_lines = list(set(all_lines))
-    print(f"لقينا {len(unique_lines)} سطر. جاري الفحص الصارم...")
-
-    # الفحص السريع
+    # الفحص بـ 100 خيط للسرعة
     with ThreadPoolExecutor(max_workers=100) as executor:
-        results = list(executor.map(verify_server, unique_lines))
+        results = list(executor.map(strict_check, unique_lines))
 
-    # التصفية النهائية
     online_servers = [s for s in results if s]
 
-    # حفظ الملف
+    # حفظ الملف الجديد
     with open("CCcam.cfg", "w") as f:
-        # ديما زيد سطر واحد "شغال 100%" كاحتياط في الأول
-        f.write("C: 151.115.73.226 12001 west bestpsw\n")
         for s in online_servers:
             f.write(s + "\n")
 
-    print(f"✅ مبروك! صفينا كولشي وخلينا غير {len(online_servers)} سيرفر شغال مزيان.")
+    print(f"✅ كملت! من أصل {len(unique_lines)}، لقيت {len(online_servers)} خدامين.")
+    print("الملف CCcam.cfg دابا واجد ونقي.")
 
 if __name__ == "__main__":
     main()
