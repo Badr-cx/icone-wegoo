@@ -1,27 +1,33 @@
-name: AutoUpdate
+name: Update CCcam Servers
+
 on:
   schedule:
-    - cron: '0 */6 * * *'
-  workflow_dispatch:
+    - cron: '0 */6 * * *' # يشتغل كل 6 ساعات
+  workflow_dispatch: # يسمح لك بتشغيله يدوياً
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v3
-      - name: Setup Python
+
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-      - name: Install Dependencies
-        run: pip install requests
-      - name: Run Scraper
-        run: python scraper.py
-      - name: Push Changes
+
+      - name: Install dependencies
         run: |
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
+          pip install -r requirements.txt
+
+      - name: Run scraper
+        run: python scraper.py
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "Badr-cx"
+          git config --global user.email "badr@example.com"
           git add CCcam.cfg
           git commit -m "Update servers" || exit 0
           git push
