@@ -23,10 +23,10 @@ jobs:
       - name: Run Scraper
         run: python scraper.py
 
-      - name: Push Changes
-        run: |
-          git config --global user.name "Badr-cx"
-          git config --global user.email "action@github.com"
-          git add CCcam.cfg
-          git commit -m "Update: $(date)" || echo "No changes"
-          git push
+     - name: Commit and Push
+      run: |
+        git config --global user.name "Badr-cx"
+        git config --global user.email "action@github.com"
+        git add CCcam.cfg
+        git commit -m "Update CCcam.cfg - $(date)" || echo "No changes"
+        git push
