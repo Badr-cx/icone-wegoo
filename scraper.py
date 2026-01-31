@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
-# القائمة الكاملة والنهائية للمصادر (أقوى ما كاين)
+# المصادر اللي ثبتات القوة ديالها فـ الكروت
 SOURCES = [
     "https://cccam.premium.pro/free-cccam/",
     "https://testcline.com/free-cccam-server.php",
@@ -21,33 +21,32 @@ SOURCES = [
     "https://iptv-m3u.online/free-cccam-server/"
 ]
 
-def power_tester(line):
-    # تنقية السطر
+def elite_tester(line):
+    # تنقية السطر من أي HTML
     line = re.sub(r'<[^>]*>', '', line).strip()
     match = re.search(r'C:\s*(\S+)\s+(\d+)\s+(\S+)\s+(\S+)', line, re.IGNORECASE)
     if not match: return None
     
     host, port, user, password = match.groups()
     
-    # فحص الكلمات المفتاحية للسيرفرات القوية
-    is_premium = any(x in host.lower() for x in ['lisboa', 'gold', '51.', '185.', '57.', 'premium', 'vip'])
+    # تحديد السيرفرات "النخبة" (Lisboa, OVH, Premium)
+    is_elite = any(x in host.lower() for x in ['lisboa', 'gold', '51.', '185.', '57.', 'premium'])
     
     start_time = time.time()
     try:
-        # فحص صارم جداً (0.35 ثانية) لضمان "القرطاسة" فقط
-        with socket.create_connection((host, int(port)), timeout=0.35):
+        # فحص صارم جداً (0.3 ثانية) - السيرفر اللي تعطل غير 1ms زيادة كيطير
+        with socket.create_connection((host, int(port)), timeout=0.3):
             latency = (time.time() - start_time) * 1000
             
-            # تنقيط السيرفر (Score)
-            if is_premium and latency < 130:
-                score = 1  # Super VIP
+            # تنقيط السيرفر
+            if is_elite and latency < 120:
+                score = 1  # VIP Elite
             elif latency < 180:
-                score = 2  # Stable
+                score = 2  # High Quality
             else:
-                score = 3  # Normal
+                score = 3  # Standard
                 
-            clean_line = f"C: {host} {port} {user} {password}"
-            return (score, latency, host, f"{clean_line} # 💎 POWER-SERVER ({int(latency)}ms)")
+            return (score, latency, host, user, f"C: {host} {port} {user} {password} # 💎 POWER-SERVER ({int(latency)}ms)")
     except:
         return None
 
@@ -56,38 +55,41 @@ def main():
     all_raw = []
     headers = {'User-Agent': 'Mozilla/5.0'}
     
-    print(f"📡 جاري مسح {len(SOURCES)} مصادر قوية...")
+    print(f"📡 فحص النخبة جارٍ... {now}")
     
     for url in SOURCES:
         try:
-            r = requests.get(url, timeout=12, headers=headers)
+            r = requests.get(url, timeout=10, headers=headers)
             found = re.findall(r'C:\s*\S+\s+\d+\s+\S+\s+\S+', r.text, re.IGNORECASE)
             all_raw.extend(found)
         except: continue
 
-    # فحص متوازي فائق السرعة
-    with ThreadPoolExecutor(max_workers=70) as executor:
-        results = [r for r in executor.map(power_tester, list(set(all_raw))) if r]
+    # فحص متوازي بـ 80 خيط لضمان السرعة
+    with ThreadPoolExecutor(max_workers=80) as executor:
+        results = [r for r in executor.map(elite_tester, list(set(all_raw))) if r]
 
     # الترتيب: الأقوى ثم الأسرع
     results.sort(key=lambda x: (x[0], x[1]))
     
-    # اختيار أفضل 10 سيرفرات مختلفة
     final_servers = []
     seen_hosts = set()
-    for score, lat, host, line in results:
-        if host not in seen_hosts and len(final_servers) < 10:
+    seen_users = set() # منع تكرار اليوزر لضمان الاتصال
+    
+    for score, lat, host, user, line in results:
+        # شرط: السيرفر ما يتعاودش واليوزر ما يتعاودش
+        if host not in seen_hosts and user not in seen_users and len(final_servers) < 10:
             final_servers.append(line)
             seen_hosts.add(host)
+            seen_users.add(user)
 
-    # كتابة الملف
+    # كتابة الملف النهائي
     with open("CCcam.cfg", "w") as f:
         f.write(f"### LAST UPDATE: {now} ###\n")
-        f.write(f"### SYSTEM: TOP 10 ELITE SERVERS ###\n\n")
+        f.write(f"### SYSTEM: ANTI-BLOCK ELITE FILTER ###\n\n")
         for s in final_servers:
             f.write(f"{s}\n")
     
-    print(f"✅ تم بنجاح! الرابط دابا عامر 'نحل'.")
+    print(f"✅ مبروك! عندك دابا أنقى وأقوى 10 سطور فـ العالم المجاني.")
 
 if __name__ == "__main__":
     main()
