@@ -1,13 +1,15 @@
-name: Update CCcam Config
+name: CCcam Auto Update
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # كايخدم كل 6 سوايع
+    - cron: '0 */3 * * *' # كايخدم بوحدو كل 3 سوايع
   workflow_dispatch:      # زر التشغيل اليدوي
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # ضروري باش يبان ليك التغيير فـ الرابط
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -23,10 +25,10 @@ jobs:
       - name: Run Scraper
         run: python scraper.py
 
-     - name: Commit and Push
-      run: |
-        git config --global user.name "Badr-cx"
-        git config --global user.email "action@github.com"
-        git add CCcam.cfg
-        git commit -m "Update CCcam.cfg - $(date)" || echo "No changes"
-        git push
+      - name: Commit and Push
+        run: |
+          git config --global user.name "Badr-cx"
+          git config --global user.email "action@github.com"
+          git add CCcam.cfg
+          git commit -m "Update CCcam.cfg - $(date)" || echo "No changes to commit"
+          git push
