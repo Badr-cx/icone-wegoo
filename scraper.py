@@ -5,47 +5,44 @@ import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
-# قائمة المواقع القوية
+# المصادر الشاملة للأقمار الأربعة
 SOURCES = [
     "https://cccam.premium.pro/free-cccam/",
     "https://boss-cccam.com/free-cccam-server.php",
     "https://cccamfree.cc/free-cccam-server/",
     "https://testcline.com/free-cccam-server.php",
     "https://cccamcard.com/free-cccam-server.php",
-    "https://dhoom.org/test/",
+    "https://www.cccambird.com/freecccam.php",
     "https://iptv-m3u.online/free-cccam-server/"
 ]
 
-# --- خاصية مسح السيرفرات الميتة (Blacklist) ---
-DEAD_HOSTS = ['127.0.0.1', 'localhost', 'test.com', 'example.com']
-DEAD_PORTS = ['80', '8080', '443', '21'] # بورتات مستحيل تكون CCcam
-
-def extreme_tester(line):
+def multi_sat_sniper(line):
     line = re.sub(r'<[^>]*>', '', line).strip()
     match = re.search(r'C:\s*(\S+)\s+(\d+)\s+(\S+)\s+(\S+)', line, re.IGNORECASE)
     if not match: return None
     
     host, port, user, password = match.groups()
     
-    # 1. فلتر البورتات والهوسات الميتة (ربح الوقت)
-    if host in DEAD_HOSTS or port in DEAD_PORTS:
-        return None
-    
-    # 2. تحديد الجودة (Astra/Hispasat Focus)
-    is_top = any(x in host.lower() for x in ['lisboa', '51.', '185.', '57.', 'gold', 'premium'])
+    # تحديد الهوية التقنية للسيرفر
+    host_lower = host.lower()
+    is_astra_king = any(k in host_lower for k in ['51.', '185.233', '57.', 'lisboa'])
+    is_hotbird_16e = any(k in host_lower for k in ['starcline', 'mytvworld', '8safenine', 'ugeen'])
     
     start_time = time.time()
     try:
-        # فحص فائق السرعة
-        with socket.create_connection((host, int(port)), timeout=0.25):
+        # فحص جودة صارم (0.28 ثانية)
+        with socket.create_connection((host, int(port)), timeout=0.28):
             latency = (time.time() - start_time) * 1000
             
-            if is_top and latency < 100:
-                tag, score = "⚽ ASTRA/HISPA-VIP", 1
-            elif latency < 150:
-                tag, score = "💎 MULTI-SAT", 2
+            # نظام الأولوية (Priority Score)
+            if is_astra_king and latency < 120:
+                score, tag = 1, "👑 ASTRA-ULTRA" # التوب ديال أسترا
+            elif is_hotbird_16e and latency < 150:
+                score, tag = 2, "📡 HB/16E-POWER" # التوب ديال هوتبرد و 16 شرق
+            elif latency < 180:
+                score, tag = 3, "⚽ MULTI-SAT" # الباقي (Hispasat + Others)
             else:
-                tag, score = "✅ STABLE", 3
+                return None
                 
             return (score, latency, host, user, f"C: {host} {port} {user} {password} # {tag} ({int(latency)}ms)")
     except: return None
@@ -61,10 +58,10 @@ def main():
             all_raw.extend(found)
         except: continue
 
-    # فحص متوازي (Parallel Testing)
     with ThreadPoolExecutor(max_workers=100) as executor:
-        results = [r for r in executor.map(extreme_tester, list(set(all_raw))) if r]
+        results = [r for r in executor.map(multi_sat_sniper, list(set(all_raw))) if r]
 
+    # الترتيب حسب الطبقات ثم السرعة
     results.sort(key=lambda x: (x[0], x[1]))
     
     final_servers = []
@@ -78,7 +75,7 @@ def main():
 
     with open("CCcam.cfg", "w") as f:
         f.write(f"### LAST UPDATE: {now} ###\n")
-        f.write(f"### SPEED-BOOSTED & CLEANED SYSTEM ###\n\n")
+        f.write(f"### MISSION: ASTRA-KING + HB/16E/30W ###\n\n")
         for s in final_servers:
             f.write(f"{s}\n")
 
