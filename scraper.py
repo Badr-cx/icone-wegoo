@@ -5,75 +5,73 @@ import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
-# المصادر الموثوقة اللي فيها التحديث يومي
+# المصادر المختارة بعناية (الثبات والقوة)
 SOURCES = [
     "https://cccam.premium.pro/free-cccam/",
     "https://boss-cccam.com/free-cccam-server.php",
     "https://cccamfree.cc/free-cccam-server/",
-    "https://testcline.com/free-cccam-server.php",
-    "https://cccamcard.com/free-cccam-server.php",
-    "https://www.cccambird.com/freecccam.php",
-    "https://iptv-m3u.online/free-cccam-server/"
+    "https://www.cccam786.com/free-cccam/",
+    "https://cccam.io/free-cccam/",
+    "https://sky-cccam.com/free-cccam-server.php",
+    "https://cccamspot.com/free-cccam-server/",
+    "https://boss-iptv.com/free-cccam/"
 ]
 
-def multi_sat_sniper(line):
-    # تنظيف السطر من أي بقايا HTML
+def check_server(line):
     line = re.sub(r'<[^>]*>', '', line).strip()
     match = re.search(r'C:\s*(\S+)\s+(\d+)\s+(\S+)\s+(\S+)', line, re.IGNORECASE)
     if not match: return None
     
     host, port, user, password = match.groups()
-    
-    # فحص تقني للسيرفر
     start_time = time.time()
     try:
-        # فحص الاتصال (Ping) في أقل من 0.5 ثانية
-        with socket.create_connection((host, int(port)), timeout=0.5):
+        # فحص صارم في 0.4 ثانية لضمان الجودة
+        with socket.create_connection((host, int(port)), timeout=0.4):
             latency = (time.time() - start_time) * 1000
             
-            # تصنيف السيرفرات حسب القوة
-            tag = "⚽ MULTI-SAT"
-            if "king" in host.lower() or "51." in host: tag = "👑 ASTRA-KING"
-            if "star" in host.lower() or "85." in host: tag = "📡 HOTBIRD-POWER"
-            
-            return (latency, f"C: {host} {port} {user} {password} # {tag} ({int(latency)}ms)")
+            # تصنيف VIP
+            tag = "VIP-STABLE" if latency < 120 else "MULTI-SAT"
+            return {
+                'latency': latency,
+                'host': host, 'port': port, 'user': user, 'pass': password,
+                'line': f"C: {host} {port} {user} {password} # {tag} ({int(latency)}ms)"
+            }
     except:
         return None
 
 def main():
-    print("--- [ 🚀 SHΔDØW SNIPER V82 - STARTING MISSION ] ---")
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print("🚀 Starting Sniper V84...")
     all_raw = []
-    
-    # 1. سحب الأسطر من جميع المصادر
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+
     for url in SOURCES:
         try:
-            print(f"[*] جاري سحب الأسطر من: {url.split('/')[2]}...")
-            r = requests.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'}, verify=False)
+            r = requests.get(url, timeout=15, headers=headers, verify=False)
             found = re.findall(r'C:\s*\S+\s+\d+\s+\S+\s+\S+', r.text, re.IGNORECASE)
             all_raw.extend(found)
-        except:
-            continue
+        except: continue
 
-    all_raw = list(set(all_raw)) # إزالة التكرار
-    print(f"[✔] تم العثور على {len(all_raw)} سطر محتمل. جاري الفحص...")
-
-    # 2. الفحص المتوازي (سرعة خارقة)
+    all_raw = list(set(all_raw))
     with ThreadPoolExecutor(max_workers=50) as executor:
-        results = [r for r in executor.map(multi_sat_sniper, all_raw) if r]
+        results = [r for r in executor.map(check_server, all_raw) if r]
 
-    # 3. الترتيب حسب السرعة (الأسرع هو الأول)
-    results.sort(key=lambda x: x[0])
-    
-    # 4. حفظ أفضل 20 سطر فقط
+    results.sort(key=lambda x: x['latency'])
+    top_results = results[:30] # أفضل 30 سطر
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # 1. حفظ ملف CCcam.cfg (العادي)
     with open("CCcam.cfg", "w") as f:
-        f.write(f"### LAST UPDATE: {now} ###\n")
-        f.write(f"### TOP 20 FASTEST SERVERS ###\n\n")
-        for i, (lat, line) in enumerate(results[:20]):
-            f.write(f"{line}\n")
-            if i < 3: print(f"🔥 سطر ذهبي: {line}")
+        f.write(f"### UPDATED: {now} ###\n\n")
+        for res in top_results:
+            f.write(f"{res['line']}\n")
 
-    print(f"\n[✔] المهمة اكتملت! تم حفظ أفضل {len(results[:20])} سطر في ملف CCcam.cfg")
+    # 2. حفظ ملف oscam.server (لأصحاب Wegoo والآيرون)
+    with open("oscam.server", "w") as f:
+        for i, res in enumerate(top_results):
+            f.write(f"[reader]\nlabel = Sniper_Server_{i}\nprotocol = cccam\ndevice = {res['host']},{res['port']}\nuser = {res['user']}\npassword = {res['pass']}\ngroup = 1\ncccversion = 2.3.2\n\n")
+
+    print(f"✅ Mission Accomplished: {len(top_results)} servers captured.")
 
 if __name__ == "__main__":
     main()
