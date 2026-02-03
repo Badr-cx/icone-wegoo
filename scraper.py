@@ -51,4 +51,15 @@ def main():
         results = [r for r in executor.map(check_server, all_raw) if r]
 
     # ترتيب من الأسرع للأبطأ
-    results.sort(key=lambda x: x
+    results.sort(key=lambda x: x[0])
+    
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    with open("CCcam.cfg", "w") as f:
+        f.write(f"### UPDATE: {now} ###\n")
+        f.write(f"### ICONE WEGOO READY ###\n\n")
+        for lat, line in results[:30]:
+            f.write(f"{line}\n")
+    print(f"✅ Success! Captured {len(results[:30])} lines.")
+
+if __name__ == "__main__":
+    main()
