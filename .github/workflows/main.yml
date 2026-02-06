@@ -1,44 +1,42 @@
-name: CCcam Elite Hunter
+name: CCcam Stealth Hunter
 
 on:
   schedule:
-    - cron: '0 */4 * * *' # السكربت كيخدم لراسو كل 4 سوايع
-  workflow_dispatch:      # كيخليك تخدمو بيديك (Run workflow) من GitHub
+    - cron: '0 */4 * * *' # كايخدم بوحدو كل 4 سوايع
+  workflow_dispatch:      # تقدر تخدمو بيديك وقت ما بغيتي
   push:
     branches:
-      - main              # كيخدم ملي كتبدل شي حاجة في الكود
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout Repository
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0 # كايجيب التاريخ كامل ديال الـ Repo باش يتفادى مشاكل الـ Push
 
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
 
-    - name: Install dependencies
+    - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install requests
 
-    - name: Clean Old Files
-      run: |
-        rm -f VERIFIED_CANNON.cfg
-        echo "Old file deleted successfully."
-
     - name: Run Scraper
       run: python scraper.py
 
-    - name: Commit and Push
+    - name: Commit and Push Changes
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         git add VERIFIED_CANNON.cfg
-        # هاد السطر كيمنع السكربت يحبس إلا مالقاش تغييرات
+        # كايسجل التغييرات وإلا مالقاش والو كايخرج بلا خطأ
         git commit -m "🚀 Update: New Elite Servers $(date +'%Y-%m-%d %H:%M')" || exit 0
-        git push
+        # الساروت هنا: كانديرو Force Push باش نتفاداو مشكل [rejected]
+        git push origin main --force
