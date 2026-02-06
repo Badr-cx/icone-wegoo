@@ -1,77 +1,82 @@
-import requests, re, socket, time, concurrent.futures
+import requests, re, socket, time, concurrent.futures, base64
 from datetime import datetime
 
-# مصادر "نقية" ومحدثة (الهمزة الحقيقية)
-SOURCES = [
-    "https://raw.githubusercontent.com/mizstd/free-cccam-servers/main/cccam.txt",
-    "https://raw.githubusercontent.com/freetv-org/cccam/main/cccam.txt",
-    "https://raw.githubusercontent.com/claudio-silva/cccam/main/cccam.txt",
-    "https://raw.githubusercontent.com/monosat/cccam/main/cccam.txt",
-    "https://clinetest.net/free_cccam.php"
+# كلمات البحث في GitHub لجلب أحدث السيرفرات "دابا دابا"
+GITHUB_SEARCH_QUERIES = [
+    'path:*.txt "C:" extension:txt',
+    'path:*.cfg "C:" extension:cfg',
+    '"C:" filename:cccam.txt',
+    '"C:" filename:cccam.cfg'
 ]
 
-def deep_verify(line):
+def cccam_verify(line):
     line = line.strip()
-    # استخراج البيانات
     match = re.search(r'C:\s*([a-zA-Z0-9\-\.]+)\s+(\d+)\s+(\S+)\s+(\S+)', line, re.I)
     if not match: return None
-    
     host, port, user, passwd = match.groups()
-    
-    # 🚫 منع السيرفرات الوهمية (البلاك ليست)
-    fake_brands = ['streamtveuropa', 'nassim', '37.60.251.20', 'asiachannels', 'visit', 'checkallsat']
-    if any(fake in host.lower() or fake in user.lower() for fake in fake_brands):
-        return None
+
+    # بلاك ليست قوية باش ميبقاش يبرزطك داكشي اللي مخدامش
+    bad = ['streamtveuropa', 'nassim', '37.60.251.20', 'ugeen', 'casacam', 'giize', 'dhoom']
+    if any(b in host.lower() for b in bad): return None
 
     try:
         start = time.perf_counter()
-        # محاولة الاتصال بالـ Login
-        s = socket.create_connection((host, int(port)), timeout=1.5)
+        s = socket.create_connection((host, int(port)), timeout=0.8)
         s.send(b"\x00\x00\x00\x00\x00\x00\x00\x00") 
         data = s.recv(1024)
         latency = int((time.perf_counter() - start) * 1000)
         s.close()
-
-        if data and len(data) > 0:
-            # ترتيب حسب الجودة (الهدف 97ms)
-            diff = abs(latency - 97)
-            # وسم السيرفرات القوية
-            tag = "💎PREMIUM" if latency < 150 else "✅STABLE"
-            return (diff, f"C: {host} {port} {user} {passwd} # {tag}_{latency}ms")
+        
+        # شرط السرعة: لازم يكون Ping طيارة (تحت 110ms) باش يخدم Astra
+        if data and latency < 110:
+            return (latency, f"C: {host} {port} {user} {passwd} # 🔥FRESH_HIT_{latency}ms")
     except:
         return None
-    return None
 
-def start_mission():
-    print("🔥 Operation: VIP HUNTING...")
-    all_raw = []
-    headers = {'User-Agent': 'Mozilla/5.0'}
+def fetch_from_github():
+    print("🔍 Searching GitHub for fresh leaks...")
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    found_lines = []
     
-    with requests.Session() as session:
-        for url in SOURCES:
-            try:
-                r = session.get(url, timeout=10, verify=False)
-                found = re.findall(r'C:\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', r.text, re.I)
-                all_raw.extend(found)
-            except: continue
+    for query in GITHUB_SEARCH_QUERIES:
+        try:
+            # كنقلبو على الملفات اللي تبدلو مؤخراً (sort:indexed)
+            search_url = f"https://api.github.com/search/code?q={query}&sort=indexed&order=desc"
+            r = requests.get(search_url, headers=headers, timeout=10)
+            items = r.json().get('items', [])
+            
+            for item in items[:5]: # كناخدو غير أحدث 5 ملفات
+                raw_url = item['html_url'].replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/')
+                res = requests.get(raw_url, timeout=5)
+                matches = re.findall(r'C:\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', res.text, re.I)
+                found_lines.extend(matches)
+        except: continue
+    return list(set(found_lines))
 
-    unique_list = list(set(all_raw))
-    print(f"📡 Found {len(unique_list)} potential servers. Testing Login...")
-
+def main():
+    print("🚀 Operation: REAL-TIME HUNTING...")
+    
+    # 1. جلب من GitHub (أحدث التسريبات)
+    fresh_lines = fetch_from_github()
+    
+    # 2. جلب من المصادر التقليدية كاحتياط
+    # (تقدر تزيد الروابط اللي عندك هنا)
+    
+    print(f"📡 Found {len(fresh_lines)} lines to test.")
+    
     with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
-        results = list(executor.map(deep_verify, unique_list))
+        results = list(executor.map(cccam_verify, fresh_lines))
 
-    # الترتيب حسب الجودة (الأقرب لـ 97ms)
     final = sorted([r for r in results if r], key=lambda x: x[0])
 
     if final:
         with open("VERIFIED_CANNON.cfg", "w") as f:
-            f.write(f"# 🎯 ELITE SERVERS | {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n")
-            for _, server in final[:40]: # خذ أفضل 40 سيرفر حقيقي
-                f.write(server + "\n")
-        print(f"✅ DONE! Found {len(final)} REAL working servers.")
+            f.write(f"# 🔥 LIVE FREESERVERS | {datetime.now().strftime('%H:%M:%S')}\n\n")
+            for _, s in final[:15]: # خذ فقط التوب 15 اللي خدامين مية في المية
+                f.write(s + "\n")
+        print(f"✅ Mission Success! {len(final)} Fresh servers found.")
     else:
-        print("❌ No real servers found. Sources might be empty.")
+        print("❌ Nothing fresh found right now. Retry in 2 minutes.")
 
 if __name__ == "__main__":
-    start_mission()
+    main()
