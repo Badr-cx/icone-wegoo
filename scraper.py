@@ -1,24 +1,22 @@
 import requests, re, socket, time, concurrent.futures
 from datetime import datetime
 
-# مصادر "خفية" وتحديثات برمجية (GitHub Gists & Hidden Repos)
+# مصادر "خام" وسيرفرات مسربة (Leaked & Auto-Generated)
+# هاد الروابط كتحط سيرفرات قبل ما توصل للمواقع المشهورة
 SOURCES = [
+    "https://raw.githubusercontent.com/mueof/free-cccam/main/cccam.txt",
+    "https://raw.githubusercontent.com/mizstd/free-cccam-servers/main/cccam.txt",
     "https://raw.githubusercontent.com/yebekhe/TV-Logo/main/cccam.txt",
-    "https://raw.githubusercontent.com/Fidat-T/Free-CCcam/main/cccam.txt",
     "https://raw.githubusercontent.com/tjm1024/Free-TV/master/cccam.txt",
-    "https://raw.githubusercontent.com/mizstd/CCcam-Free/main/cccam.txt",
-    "https://raw.githubusercontent.com/best-cccam/free/main/cccam.cfg",
-    "https://raw.githubusercontent.com/S-K-S-B/CCcam/main/free.txt",
-    "https://raw.githubusercontent.com/mueof/free-cccam/main/cccam.txt", # مصدر جديد
-    "https://raw.githubusercontent.com/vaxilu/x-ui/main/cccam.txt",     # مصدر جديد
-    "https://raw.githubusercontent.com/mizstd/free-cccam-servers/main/cccam.txt", # مصدر جديد
-    "http://www.cccam-free.com/",
-    "http://www.freecccamserver.com/",
-    "http://www.boss-cccam.com/Free.php"
+    "https://raw.githubusercontent.com/Fidat-T/Free-CCcam/main/cccam.txt",
+    "https://raw.githubusercontent.com/S-K-S-B/CCcam/main/cccam.txt",
+    "https://clinetest.net/free_cccam.php",
+    "https://vipsat.net/free-cccam-server.php",
+    "https://fastcccam.com/free-cccam.php"
 ]
 
-def check_satellite_reach(line):
-    """ فحص جودة السيرفر: السرعة هي كل شيء """
+def verify_leaked_server(line):
+    """ فحص فائق السرعة: أي سيرفر تقيل كيطير """
     line = line.strip()
     match = re.search(r'C:\s*([a-zA-Z0-9\-\.]+)\s+(\d+)\s+(\S+)\s+(\S+)', line, re.I)
     if not match: return None
@@ -26,47 +24,56 @@ def check_satellite_reach(line):
     host, port, user, passwd = match.groups()
     try:
         start = time.perf_counter()
-        # تقليل الـ timeout لـ 0.3 ثانية باش نجيبو غير الصوارخ
-        with socket.create_connection((host, int(port)), timeout=0.3) as sock:
+        # تقليص الـ timeout لـ 0.25 ثانية فقط (غير اللي طيارة غيدوز)
+        with socket.create_connection((host, int(port)), timeout=0.25) as sock:
             latency = int((time.perf_counter() - start) * 1000)
-            # تصنيف السيرفرات حسب استجابتها للباقات
-            status = "🌟ULTRA" if latency < 100 else "⚡FAST"
-            return (latency, f"C: {host} {port} {user} {passwd} # {status}_{latency}ms")
+            # وسم خاص للسيرفرات اللي كتحل باقات تقيلة
+            if latency < 120: tag = "💎PREMIUM"
+            else: tag = "✅STABLE"
+            return (latency, f"C: {host} {port} {user} {passwd} # {tag}_{latency}ms")
     except:
         return None
 
-def start_scraping():
-    print("🕵️‍♂️ SHΔDØW CORE: جاري اختراق المصادر الحصرية...")
-    raw_lines = []
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0'}
-
+def main_hunt():
+    print("🎯 SHΔDØW CORE: جاري سحب السيرفرات من 'الكرش' ديال الويب...")
+    
+    all_hits = []
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    
     with requests.Session() as session:
-        session.headers.update(headers)
         for url in SOURCES:
             try:
-                r = session.get(url, timeout=5, verify=False)
-                # استخراج السطور بدقة عالية
+                # تجاوز حماية المواقع بـ verify=False
+                r = session.get(url, timeout=6, verify=False)
+                # صيد السطور بـ Regex كيقبل الحروف والأرقام فقط
                 found = re.findall(r'C:\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', r.text, re.I)
-                raw_lines.extend(found)
+                all_hits.extend(found)
             except: continue
 
-    unique_pool = list(set(raw_lines))
-    print(f"📡 لقيت {len(unique_pool)} سيرفر خام. غنصفي منهم غير 'الهربانين'...")
+    # تنظيف القائمة من التكرار
+    clean_hits = list(set(all_hits))
+    print(f"📡 لقينا {len(clean_hits)} سيرفر مرشح. جاري الفرز النووي...")
 
-    # فحص 150 سيرفر في دقة وحدة
-    with concurrent.futures.ThreadPoolExecutor(max_workers=150) as executor:
-        results = list(executor.map(check_satellite_reach, unique_pool))
+    # فحص متوازي بـ 250 خيط (بسرعة البرق)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=250) as executor:
+        results = list(executor.map(verify_leaked_server, clean_hits))
 
-    # الترتيب من الأسرع للأبطأ
-    valid = sorted([r for r in results if r], key=lambda x: x[0])
+    # فلترة الشغالين وترتيبهم حسب الجودة
+    live_servers = sorted([r for r in results if r], key=lambda x: x[0])
 
-    with open("VIP_ELITE_SERVERS.cfg", "w") as f:
-        f.write(f"# SHΔDØW ELITE EXCLUSIVE | {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
-        f.write(f"# TARGET: ASTRA - HOTBIRD - HISPASAT\n\n")
-        for _, s in valid[:150]: # خذ فقط أفضل 150 سيرفر
+    if not live_servers:
+        print("❌ الموارد حالياً ناشفة، جرب من هنا 10 دقايق.")
+        return
+
+    # حفظ أفضل 100 سيرفر فقط لضمان عدم ثقل الريسيفر
+    with open("SHADOW_LEAKED.cfg", "w") as f:
+        f.write(f"# LEAKED VIP SERVERS | {datetime.now().strftime('%H:%M:%S')}\n")
+        f.write(f"# BEST FOR ASTRA/HOTBIRD | TOTAL: {len(live_servers[:100])}\n\n")
+        for _, s in live_servers[:100]:
             f.write(s + "\n")
 
-    print(f"✅ تم بنجاح! الملف 'VIP_ELITE_SERVERS.cfg' واجد فيه {len(valid[:150])} سيرفر ناضي.")
+    print(f"✨ المهمة تمت! الملف 'SHADOW_LEAKED.cfg' فيه {len(live_servers[:100])} سيرفر ناضي.")
+    print("🎬 جرب السطور اللي فيهم PREMIUM هوما اللولين.")
 
 if __name__ == "__main__":
-    start_scraping()
+    main_hunt()
