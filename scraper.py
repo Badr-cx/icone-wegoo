@@ -1,7 +1,7 @@
 import requests, re, socket, time, concurrent.futures
 from datetime import datetime
 
-# المصادر العالمية - تم التحقق من روابطها
+# مصادر "خفية" وتحديثات برمجية (GitHub Gists & Hidden Repos)
 SOURCES = [
     "https://raw.githubusercontent.com/yebekhe/TV-Logo/main/cccam.txt",
     "https://raw.githubusercontent.com/Fidat-T/Free-CCcam/main/cccam.txt",
@@ -9,19 +9,16 @@ SOURCES = [
     "https://raw.githubusercontent.com/mizstd/CCcam-Free/main/cccam.txt",
     "https://raw.githubusercontent.com/best-cccam/free/main/cccam.cfg",
     "https://raw.githubusercontent.com/S-K-S-B/CCcam/main/free.txt",
-    "https://raw.githubusercontent.com/Mahesh0433/CCcam-Free/main/cccam.txt",
-    "https://clinetest.net/free_cccam.php",
-    "https://boss-cccam.com/free-cccam-server.php",
-    "https://cccamfree.cc/free-cccam-server/",
-    "https://www.cccam786.com/free-cccam/",
-    "https://cccam.io/free-cccam/",
-    "https://vipsat.net/free-cccam-server.php",
-    "https://fastcccam.com/free-cccam.php",
-    "http://www.boss-cccam.com/Free.php",
-    "https://www.cccam2.com/free-cccam-server.php"
+    "https://raw.githubusercontent.com/mueof/free-cccam/main/cccam.txt", # مصدر جديد
+    "https://raw.githubusercontent.com/vaxilu/x-ui/main/cccam.txt",     # مصدر جديد
+    "https://raw.githubusercontent.com/mizstd/free-cccam-servers/main/cccam.txt", # مصدر جديد
+    "http://www.cccam-free.com/",
+    "http://www.freecccamserver.com/",
+    "http://www.boss-cccam.com/Free.php"
 ]
 
-def verify_beast_mode(line):
+def check_satellite_reach(line):
+    """ فحص جودة السيرفر: السرعة هي كل شيء """
     line = line.strip()
     match = re.search(r'C:\s*([a-zA-Z0-9\-\.]+)\s+(\d+)\s+(\S+)\s+(\S+)', line, re.I)
     if not match: return None
@@ -29,42 +26,47 @@ def verify_beast_mode(line):
     host, port, user, passwd = match.groups()
     try:
         start = time.perf_counter()
-        with socket.create_connection((host, int(port)), timeout=0.5) as sock:
+        # تقليل الـ timeout لـ 0.3 ثانية باش نجيبو غير الصوارخ
+        with socket.create_connection((host, int(port)), timeout=0.3) as sock:
             latency = int((time.perf_counter() - start) * 1000)
-            tag = "💎ELITE" if latency < 200 else "🚀FAST"
-            return (latency, f"C: {host} {port} {user} {passwd} # {tag}_{latency}ms")
+            # تصنيف السيرفرات حسب استجابتها للباقات
+            status = "🌟ULTRA" if latency < 100 else "⚡FAST"
+            return (latency, f"C: {host} {port} {user} {passwd} # {status}_{latency}ms")
     except:
         return None
 
-def execute_annihilation():
-    print("💀 SHΔDØW CORE: جاري اكتساح الشبكة الآن...")
-    
-    all_raw_lines = []
-    headers = {'User-Agent': 'Mozilla/5.0'}
+def start_scraping():
+    print("🕵️‍♂️ SHΔDØW CORE: جاري اختراق المصادر الحصرية...")
+    raw_lines = []
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0'}
 
     with requests.Session() as session:
+        session.headers.update(headers)
         for url in SOURCES:
             try:
-                r = session.get(url, timeout=7, verify=False)
-                found = re.findall(r'C:\s*\S+\s+\d+\s+\S+\s+\S+', r.text, re.I)
-                all_raw_lines.extend(found)
+                r = session.get(url, timeout=5, verify=False)
+                # استخراج السطور بدقة عالية
+                found = re.findall(r'C:\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', r.text, re.I)
+                raw_lines.extend(found)
             except: continue
 
-    unique_pool = list(set(all_raw_lines))
-    # تم تصحيح السطر أدناه (استبدال " بالداخل بـ ')
-    print(f"🔥 جاري تصفية 'الذهب' من النحاس (الفحص الفعلي لـ {len(unique_pool)} سيرفر)...")
+    unique_pool = list(set(raw_lines))
+    print(f"📡 لقيت {len(unique_pool)} سيرفر خام. غنصفي منهم غير 'الهربانين'...")
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:
-        results = list(executor.map(verify_beast_mode, unique_pool))
+    # فحص 150 سيرفر في دقة وحدة
+    with concurrent.futures.ThreadPoolExecutor(max_workers=150) as executor:
+        results = list(executor.map(check_satellite_reach, unique_pool))
 
-    working = sorted([r for r in results if r], key=lambda x: x[0])
+    # الترتيب من الأسرع للأبطأ
+    valid = sorted([r for r in results if r], key=lambda x: x[0])
 
-    with open("CCcam.cfg", "w") as f:
-        f.write(f"# SHΔDØW CORE V101 | {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n")
-        for _, server in working:
-            f.write(f"{server}\n")
+    with open("VIP_ELITE_SERVERS.cfg", "w") as f:
+        f.write(f"# SHΔDØW ELITE EXCLUSIVE | {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
+        f.write(f"# TARGET: ASTRA - HOTBIRD - HISPASAT\n\n")
+        for _, s in valid[:150]: # خذ فقط أفضل 150 سيرفر
+            f.write(s + "\n")
 
-    print(f"✅ المهمة تمت! الملف جاهز بـ {len(working)} سيرفر شغال.")
+    print(f"✅ تم بنجاح! الملف 'VIP_ELITE_SERVERS.cfg' واجد فيه {len(valid[:150])} سيرفر ناضي.")
 
 if __name__ == "__main__":
-    execute_annihilation()
+    start_scraping()
