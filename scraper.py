@@ -1,80 +1,89 @@
 import requests, re, socket, time, concurrent.futures
 from datetime import datetime
+import random
 
-# مصادر "بريما" وسيرفرات مدفوعة مؤقتة (Trial/Paid Servers)
-VIP_SOURCES = [
+# مصادر السيرفرات الحصرية
+SOURCES = [
+    "https://raw.githubusercontent.com/yebekhe/TV-Logo/main/cccam.txt",
     "https://raw.githubusercontent.com/mueof/free-cccam/main/cccam.txt",
     "https://vipsat.net/free-cccam-server.php",
     "https://boss-cccam.com/free-cccam-server.php",
     "https://clinetest.net/free_cccam.php",
     "https://fastcccam.com/free-cccam.php",
-    "https://cccam786.com/free-cccam-servers/",
-    "http://www.clinetest.net/free_cccam.php",
-    "http://www.cccam-free.com/",
-    "https://raw.githubusercontent.com/yebekhe/TV-Logo/main/cccam.txt"
+    "http://www.cccam2.com/free-cccam-server.php"
 ]
 
-def vip_check(line):
+# قائمة بروكسيات لفك الحظر (تحديث تلقائي بسيط)
+PROXY_LIST_URL = "https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all"
+
+def get_random_proxy():
+    try:
+        r = requests.get(PROXY_LIST_URL, timeout=5)
+        proxies = r.text.splitlines()
+        return random.choice(proxies) if proxies else None
+    except:
+        return None
+
+def smart_verify(line):
     line = line.strip()
     match = re.search(r'C:\s*([a-zA-Z0-9\-\.]+)\s+(\d+)\s+(\S+)\s+(\S+)', line, re.I)
     if not match: return None
     
     host, port, user, passwd = match.groups()
-    
     try:
         start = time.perf_counter()
-        # فحص صارم بـ 0.2 ثانية باش نعزلو غير الطيارة
-        with socket.create_connection((host, int(port)), timeout=0.25) as sock:
+        # Timeout 0.6s لضمان صيد سيرفرات قريبة من 97ms
+        with socket.create_connection((host, int(port)), timeout=0.6) as sock:
             latency = int((time.perf_counter() - start) * 1000)
-            
-            # كنقلبو على الـ Ping القريب من 97ms (مثلا بين 80 و 110)
-            if 80 <= latency <= 115:
-                tag = "💎ULTRA_VIP"
-                priority = 0 # هو الأول في الترتيب
-            elif latency < 80:
-                tag = "⚡LOCAL_FAST"
-                priority = 1
-            else:
-                return None # أي حاجة تقيلة كترفض
-
-            return (priority, latency, f"C: {host} {port} {user} {passwd} # {tag}_{latency}ms")
+            diff = abs(latency - 97) # الهدف هو 97ms
+            tag = "💎VIP_97" if diff < 25 else "✅LIVE"
+            return (diff, latency, f"C: {host} {port} {user} {passwd} # {tag}_{latency}ms")
     except:
         return None
 
-def main_mission():
-    print("🕵️‍♂️ Hunting for Paid-Grade Servers (Target: ~97ms)...")
-    
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/121.0.0.0'}
+def start_stealth_mission():
+    print("🕵️‍♂️ Stealth Mode Active: جاري تخطي الحماية...")
     all_raw = []
+    
+    proxy = get_random_proxy()
+    proxies_dict = {"http": f"http://{proxy}", "https": f"http://{proxy}"} if proxy else None
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    }
 
     with requests.Session() as session:
         session.headers.update(headers)
-        for url in VIP_SOURCES:
+        for url in SOURCES:
             try:
-                # تجاوز حماية المواقع بالـ Cookies والـ Headers
-                r = session.get(url, timeout=12, verify=False)
+                # محاولة السحب بالبروكسي، وإذا فشل نجرب بدونه
+                r = session.get(url, timeout=15, verify=False, proxies=proxies_dict)
                 found = re.findall(r'C:\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', r.text, re.I)
                 all_raw.extend(found)
-            except: continue
+            except:
+                try: # محاولة أخيرة بدون بروكسي
+                    r = session.get(url, timeout=10, verify=False)
+                    found = re.findall(r'C:\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', r.text, re.I)
+                    all_raw.extend(found)
+                except: continue
 
     unique_candidates = list(set(all_raw))
-    print(f"📡 لقيت {len(unique_candidates)} سطر مرشح. جاري عزل السيرفرات المدفوعة...")
+    print(f"📡 Found {len(unique_candidates)} potential servers. Verifying...")
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=150) as executor:
-        results = list(executor.map(vip_check, unique_candidates))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:
+        results = list(executor.map(smart_verify, unique_candidates))
 
-    # الترتيب: السيرفرات القريبة من 97ms هي اللولة
-    final_list = sorted([r for r in results if r], key=lambda x: (x[0], x[1]))
+    # الترتيب حسب الأقرب لـ 97ms
+    final_sorted = sorted([r for r in results if r], key=lambda x: x[0])
 
-    if final_list:
-        with open("PAID_GRADE.cfg", "w") as f:
-            f.write(f"# VIP PAID-GRADE SERVERS | TARGET PING: 97ms\n")
-            f.write(f"# GENERATED: {datetime.now().strftime('%H:%M:%S')}\n\n")
-            for _, lat, server in final_list[:40]: # خذ فقط أفضل 40 سطر طيارة
+    if final_sorted:
+        with open("VERIFIED_CANNON.cfg", "w") as f:
+            f.write(f"# SHΔDØW STEALTH | TARGET 97ms | {datetime.now().strftime('%H:%M')}\n\n")
+            for _, lat, server in final_sorted[:100]:
                 f.write(server + "\n")
-        print(f"✅ تم! الملف 'PAID_GRADE.cfg' فيه {len(final_list[:40])} سيرفر 'مدفوع' بـ Ping خيالي.")
+        print(f"✅ Success! Found {len(final_sorted)} servers.")
     else:
-        print("❌ مالقيتش سيرفرات بهاد السرعة دابا. كاع اللي كاينين تقال.")
+        print("⚠️ No servers found. The sources might be down.")
 
 if __name__ == "__main__":
-    main_mission()
+    start_stealth_mission()
