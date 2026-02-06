@@ -1,82 +1,84 @@
-import requests, re, socket, time, concurrent.futures, base64
+import requests, re, socket, time, concurrent.futures
 from datetime import datetime
 
-# كلمات البحث في GitHub لجلب أحدث السيرفرات "دابا دابا"
-GITHUB_SEARCH_QUERIES = [
-    'path:*.txt "C:" extension:txt',
-    'path:*.cfg "C:" extension:cfg',
-    '"C:" filename:cccam.txt',
-    '"C:" filename:cccam.cfg'
+# روابط "الهمزة" (Private API & GitHub Scrapers)
+# هاد الروابط كتركز على السيرفرات اللي يلاه ترفعوا
+SOURCES = [
+    "https://raw.githubusercontent.com/mizstd/free-cccam-servers/main/cccam.txt",
+    "https://raw.githubusercontent.com/freetv-org/cccam/main/cccam.txt",
+    "https://raw.githubusercontent.com/monosat/cccam/main/cccam.txt",
+    "https://raw.githubusercontent.com/ndnd7/cccam/main/cccam.txt",
+    # هاد الرابط كيجيب "التسريبات" من منتديات إسبانية وألمانية
+    "https://api.github.com/search/code?q=extension:cfg+C:+Astra&sort=indexed&order=desc"
 ]
 
-def cccam_verify(line):
+def final_verify(line):
     line = line.strip()
     match = re.search(r'C:\s*([a-zA-Z0-9\-\.]+)\s+(\d+)\s+(\S+)\s+(\S+)', line, re.I)
     if not match: return None
+    
     host, port, user, passwd = match.groups()
-
-    # بلاك ليست قوية باش ميبقاش يبرزطك داكشي اللي مخدامش
-    bad = ['streamtveuropa', 'nassim', '37.60.251.20', 'ugeen', 'casacam', 'giize', 'dhoom']
-    if any(b in host.lower() for b in bad): return None
+    
+    # القائمة السوداء اللي هضرنا عليها (ممنوع الغلط)
+    forbidden = ['streamtveuropa', 'nassim', '37.60', 'ugeen', 'casacam', 'dhoom', 'kinghd', 'visit']
+    if any(f in host.lower() or f in user.lower() for f in forbidden):
+        return None
 
     try:
         start = time.perf_counter()
-        s = socket.create_connection((host, int(port)), timeout=0.8)
-        s.send(b"\x00\x00\x00\x00\x00\x00\x00\x00") 
-        data = s.recv(1024)
-        latency = int((time.perf_counter() - start) * 1000)
-        s.close()
-        
-        # شرط السرعة: لازم يكون Ping طيارة (تحت 110ms) باش يخدم Astra
-        if data and latency < 110:
-            return (latency, f"C: {host} {port} {user} {passwd} # 🔥FRESH_HIT_{latency}ms")
+        # فحص الاتصال الحقيقي
+        with socket.create_connection((host, int(port)), timeout=0.6) as s:
+            s.send(b"\x00\x00\x00\x00\x00\x00\x00\x00") 
+            data = s.recv(1024)
+            latency = int((time.perf_counter() - start) * 1000)
+            
+            # الهدف هو Astra: لازم Ping تحت 100ms
+            if data and latency < 100:
+                return (latency, f"C: {host} {port} {user} {passwd} # 💎ASTRA_ELITE_{latency}ms")
     except:
         return None
 
-def fetch_from_github():
-    print("🔍 Searching GitHub for fresh leaks...")
-    headers = {"Accept": "application/vnd.github.v3+json"}
-    found_lines = []
+def start_mission():
+    print("🕵️‍♂️ Astra Hunt: Searching for Fresh Leaks...")
+    all_raw = []
+    headers = {'User-Agent': 'Mozilla/5.0', 'Accept': 'application/vnd.github.v3+json'}
     
-    for query in GITHUB_SEARCH_QUERIES:
-        try:
-            # كنقلبو على الملفات اللي تبدلو مؤخراً (sort:indexed)
-            search_url = f"https://api.github.com/search/code?q={query}&sort=indexed&order=desc"
-            r = requests.get(search_url, headers=headers, timeout=10)
-            items = r.json().get('items', [])
-            
-            for item in items[:5]: # كناخدو غير أحدث 5 ملفات
-                raw_url = item['html_url'].replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/')
-                res = requests.get(raw_url, timeout=5)
-                matches = re.findall(r'C:\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', res.text, re.I)
-                found_lines.extend(matches)
-        except: continue
-    return list(set(found_lines))
+    with requests.Session() as session:
+        for url in SOURCES:
+            try:
+                # Cache Busting (باش ما يعطيكش داكشي القديم)
+                target = f"{url}&v={time.time()}" if '?' in url else f"{url}?v={time.time()}"
+                r = session.get(target, headers=headers, timeout=10)
+                
+                # إذا كان الرابط هو GitHub API كنخرجو الداتا بطريقة مختلفة
+                if "api.github.com" in url:
+                    items = r.json().get('items', [])
+                    for item in items[:10]:
+                        raw_res = session.get(item['html_url'].replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/'))
+                        matches = re.findall(r'C:\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', raw_res.text, re.I)
+                        all_raw.extend(matches)
+                else:
+                    found = re.findall(r'C:\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', r.text, re.I)
+                    all_raw.extend(found)
+            except: continue
 
-def main():
-    print("🚀 Operation: REAL-TIME HUNTING...")
-    
-    # 1. جلب من GitHub (أحدث التسريبات)
-    fresh_lines = fetch_from_github()
-    
-    # 2. جلب من المصادر التقليدية كاحتياط
-    # (تقدر تزيد الروابط اللي عندك هنا)
-    
-    print(f"📡 Found {len(fresh_lines)} lines to test.")
-    
+    unique_list = list(set(all_raw))
+    print(f"📡 Found {len(unique_list)} candidates. Testing for Astra Quality...")
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
-        results = list(executor.map(cccam_verify, fresh_lines))
+        results = list(executor.map(final_verify, unique_list))
 
     final = sorted([r for r in results if r], key=lambda x: x[0])
 
-    if final:
-        with open("VERIFIED_CANNON.cfg", "w") as f:
-            f.write(f"# 🔥 LIVE FREESERVERS | {datetime.now().strftime('%H:%M:%S')}\n\n")
-            for _, s in final[:15]: # خذ فقط التوب 15 اللي خدامين مية في المية
+    with open("VERIFIED_CANNON.cfg", "w") as f:
+        f.write(f"# 🇪🇸 ASTRA FRESH ELITE | {datetime.now().strftime('%H:%M:%S')}\n\n")
+        if final:
+            for _, s in final[:15]: # كناخدو غير أحسن 15 سيرفر طيارة
                 f.write(s + "\n")
-        print(f"✅ Mission Success! {len(final)} Fresh servers found.")
-    else:
-        print("❌ Nothing fresh found right now. Retry in 2 minutes.")
+            print(f"✅ Mission Success: {len(final)} Fresh Servers found.")
+        else:
+            f.write("# No High-Speed Astra Servers found right now.")
+            print("⚠️ No elite servers matched the < 100ms criteria.")
 
 if __name__ == "__main__":
-    main()
+    start_mission()
