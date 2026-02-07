@@ -1,106 +1,91 @@
 import requests, re, socket, time, concurrent.futures
 from datetime import datetime
 
-# 1. المصادر المتنوعة (مواقع + قنوات تيليغرام)
+# المصادر شاملة الرابط اللي عطيتيني (بصيغة RAW)
 SOURCES = [
-    # مواقع (جديدة وقوية)
-    "https://cccamcard.com/free-cccam-server.php",
-    "https://cccamia.com/cccamfree1/",
-    "https://cccam.net/freecccam",
-    "https://cccam-premium.pro/free-cccam/",
-    "https://vipsat.net/free-cccam-server.php",
-    "https://boss-cccam.com/free-cccam-server.php",
-    "https://www.cccam-free.com/",
-    "https://free.cccam-premium.pro/",
-    # قنوات تيليغرام (عن طريق الويب - Web Preview)
-    "https://t.me/s/Free_Cccam_Server_Daily",
-    "https://t.me/s/cccam_sharing_tv",
-    "https://t.me/s/vipsat_net",
-    "https://t.me/s/smart_cccam",
-    # Github (الهمزة ديال أوروبا والصين)
+    # الرابط ديالك (تم تحويله لـ RAW باش يقرأ الكود نيشان)
+    "https://raw.githubusercontent.com/Badr-cx/icone-wegoo/main/VERIFIED_CANNON.cfg",
+    # مصادر Github أخرى نشيطة (Live)
     "https://raw.githubusercontent.com/yebekhe/TV-Logo/main/cccam.txt",
-    "https://raw.githubusercontent.com/mizstd/free-cccam-servers/main/cccam.txt"
+    "https://raw.githubusercontent.com/mizstd/free-cccam-servers/main/cccam.txt",
+    "https://raw.githubusercontent.com/tarekzoka/free/main/cccam.txt",
+    # قنوات تيليغرام (Web View)
+    "https://t.me/s/Free_Cccam_Server_Daily",
+    "https://t.me/s/vipsat_net",
+    # مواقع (السرعة)
+    "https://cccamia.com/cccamfree1/",
+    "https://cccamcard.com/free-cccam-server.php"
 ]
 
 def verify_server(line):
-    """ فحص السيرفر واش حي وسريع """
-    line = line.strip().replace('</td>', ' ').replace('<br>', ' ')
+    # تنظيف السطر من أي رموز HTML أو فراغات
+    line = line.strip()
+    # Regex كيجبد السيرفر واخا يكون السطر فيه تعليقات # أو رموز
     match = re.search(r'C:\s*([a-zA-Z0-9\-\.]+)\s+(\d+)\s+(\S+)\s+(\S+)', line, re.I)
     if not match: return None
     
     host, port, user, passwd = match.groups()
     
-    # حظر السيرفرات الوهمية والهوستات اللي كتثقل السكين
-    if any(f in host.lower() for f in ['127.0.0.1', 'localhost', 'nassim', 'stream']): return None
+    # فلتر للهوستات الميتة
+    if any(f in host.lower() for f in ['127.0.0.1', 'nassim', 'stream']): return None
 
     try:
         start = time.perf_counter()
-        with socket.create_connection((host, int(port)), timeout=1.8) as sock:
+        # محاولة اتصال حقيقية بالبورت
+        with socket.create_connection((host, int(port)), timeout=1.5) as sock:
             latency = int((time.perf_counter() - start) * 1000)
-            # قبول السيرفرات اللي تحت 450ms
-            if latency < 450:
-                return (latency, host, port, user, passwd)
+            return (latency, host, port, user, passwd)
     except:
         return None
 
 def run_scraper():
-    print(f"🚀 Mission Started: Scraping Web & Telegram ({len(SOURCES)} sources)...")
+    print("🛰️  Starting Global Search (GitHub, Telegram, Web)...")
     all_raw = []
     
     session = requests.Session()
-    session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
-    })
+    session.headers.update({'User-Agent': 'Mozilla/5.0'})
 
     for url in SOURCES:
         try:
-            r = session.get(url, timeout=15)
-            # تنظيف الـ HTML باش ميغلطش الـ Regex
-            text_cleaned = re.sub('<[^<]+?>', ' ', r.text)
+            r = session.get(url, timeout=10)
+            # استخراج أسطر C: من وسط أي نص
+            matches = re.findall(r'C:\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', r.text, re.I)
             
-            # البحث عن صيغة C: التقليدية
-            matches = re.findall(r'C:\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', text_cleaned, re.I)
-            
-            # إذا كان السيرفر محطوط بلا "C:" (غالباً فتيليغرام)
+            # محاولة تانية لأسطر بلا C: (لقنص السيرفرات المخفية)
             if not matches:
-                extra = re.findall(r'([a-zA-Z0-9\-\.]+\s+\d+\s+[a-zA-Z0-9\-\.]+\s+[a-zA-Z0-9\-\.]+)', text_cleaned)
+                extra = re.findall(r'([a-zA-Z0-9\-\.]+\s+\d+\s+[a-zA-Z0-9\-\.]+\s+[a-zA-Z0-9\-\.]+)', r.text)
                 for e in extra:
-                    parts = e.split()
-                    if parts[1].isdigit(): # كيتأكد بلي البورت رقم
-                        matches.append(f"C: {e}")
+                    if e.split()[1].isdigit(): matches.append(f"C: {e}")
             
             all_raw.extend(matches)
-            print(f"📡 {url.split('/')[-1]}: Found {len(matches)}")
-        except:
-            continue
+            print(f"🔎 {url.split('/')[-1]}: Found {len(matches)}")
+        except: continue
 
-    # حيد المعاود
     unique_list = list(set(all_raw))
-    print(f"🧪 Testing {len(unique_list)} unique clines... Hang on!")
+    print(f"🧪 Testing {len(unique_list)} clines... please wait.")
 
-    # فحص 120 سيرفر فدقة وحدة (سرعة خيالية)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=120) as executor:
+    # فحص متوازي سريع جداً
+    with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:
         results = [r for r in executor.map(verify_server, unique_list) if r]
 
-    # الترتيب حسب السرعة (Ping)
+    # ترتيب حسب Ping (الأسرع أولاً)
     results.sort(key=lambda x: x[0])
 
     if results:
-        # 1. ملف ncam.server
+        # حفظ ncam.server (لأجهزة Enigma2 و Icone)
         with open("ncam.server", "w", encoding="utf-8") as f:
-            f.write(f"### NCAM GENERATED | {datetime.now().strftime('%H:%M:%S')} | {len(results)} Active ###\n")
-            for i, (lat, host, port, user, passwd) in enumerate(results[:50]): # أحسن 50 سيرفر
-                f.write(f"\n[reader]\nlabel = Server_{i+1}_{lat}ms\nprotocol = cccam\ndevice = {host},{port}\nuser = {user}\npassword = {passwd}\ngroup = 1\ncccversion = 2.3.2\nccckeepalive = 1\n")
+            f.write(f"### GENERATED {datetime.now().strftime('%Y-%m-%d %H:%M')} ###\n")
+            for i, (lat, host, port, user, passwd) in enumerate(results[:30]):
+                f.write(f"\n[reader]\nlabel = Server_{i+1}_{lat}ms\nprotocol = cccam\ndevice = {host},{port}\nuser = {user}\npassword = {passwd}\ngroup = 1\n")
         
-        # 2. ملف CCcam.cfg
+        # حفظ CCcam.cfg
         with open("CCcam.cfg", "w", encoding="utf-8") as f:
-            for lat, host, port, user, passwd in results[:50]:
+            for lat, host, port, user, passwd in results[:30]:
                 f.write(f"C: {host} {port} {user} {passwd} # Ping: {lat}ms\n")
         
-        print(f"✅ Mission Accomplished! Found {len(results)} live servers.")
-        print(f"📂 Saved to ncam.server & CCcam.cfg")
+        print(f"✅ Mission Success! {len(results)} active servers found.")
     else:
-        print("❌ No active servers found. Check your internet connection!")
+        print("❌ All servers in these links are DEAD. You need fresh sources!")
 
 if __name__ == "__main__":
     run_scraper()
