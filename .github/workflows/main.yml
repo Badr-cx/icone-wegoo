@@ -1,31 +1,31 @@
-name: Auto Update Servers
+name: Auto Update VERIFIED_CANNON
 on:
   schedule:
-    - cron: '0 */6 * * *' # يشتغل كل 6 ساعات تلقائياً
-  workflow_dispatch: # يسمح لك بتشغيله يدوياً أيضاً
+    - cron: '0 */3 * * *' # تحديث آلي كل 3 ساعات
+  workflow_dispatch: # زر لتشغيله يدوياً في أي وقت
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.9'
 
-      - name: Install dependencies
+      - name: Install Requests
         run: pip install requests
 
-      - name: Run scraper
+      - name: Execute Scraper
         run: python scraper.py
 
-      - name: Commit and push changes
+      - name: Push to Repository
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add VERIFIED_CANNON.cfg
-          git commit -m "🚀 Update: New Elite Servers $(date)" || exit 0
+          git commit -m "🚀 Update VERIFIED_CANNON.cfg: $(date)" || exit 0
           git push
