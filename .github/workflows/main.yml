@@ -1,42 +1,31 @@
-name: CCcam Stealth Hunter
-
+name: Auto Update Servers
 on:
   schedule:
-    - cron: '0 */4 * * *' # كايخدم بوحدو كل 4 سوايع
-  workflow_dispatch:      # تقدر تخدمو بيديك وقت ما بغيتي
-  push:
-    branches:
-      - main
+    - cron: '0 */6 * * *' # يشتغل كل 6 ساعات تلقائياً
+  workflow_dispatch: # يسمح لك بتشغيله يدوياً أيضاً
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0 # كايجيب التاريخ كامل ديال الـ Repo باش يتفادى مشاكل الـ Push
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
 
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install requests
+      - name: Install dependencies
+        run: pip install requests
 
-    - name: Run Scraper
-      run: python scraper.py
+      - name: Run scraper
+        run: python scraper.py
 
-    - name: Commit and Push Changes
-      run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-        git add VERIFIED_CANNON.cfg
-        # كايسجل التغييرات وإلا مالقاش والو كايخرج بلا خطأ
-        git commit -m "🚀 Update: New Elite Servers $(date +'%Y-%m-%d %H:%M')" || exit 0
-        # الساروت هنا: كانديرو Force Push باش نتفاداو مشكل [rejected]
-        git push origin main --force
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add VERIFIED_CANNON.cfg
+          git commit -m "🚀 Update: New Elite Servers $(date)" || exit 0
+          git push
