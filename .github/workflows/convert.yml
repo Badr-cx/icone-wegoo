@@ -10,13 +10,14 @@ jobs:
         run: |
           TAR_FILE=$(ls *.tar | head -n 1)
           FILENAME=$(basename "$TAR_FILE" .tar)
+          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
           tar -xvf "$TAR_FILE"
           FOLDER=$(ls -d */ | head -n 1 | sed 's/\///')
           sudo chown -R root:root "$FOLDER"
           sudo chmod -R 755 "$FOLDER"
           cd "$FOLDER"
-          sudo tar --owner=0 --group=0 -cvzf ../$FILENAME.ngz *
+          sudo tar --owner=0 --group=0 -cvzf "../$FILENAME.ngz" *
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ env.FILENAME }}
-          path: "*.ngz"
+          path: ./*.ngz
