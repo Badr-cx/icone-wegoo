@@ -8,23 +8,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Build and Pack
+      - name: Build and Pack (Professional Mode)
         run: |
-          # 1. تحديد اسم الملف
+          # 1. تحديد الملف وتجهيز المجلد
           TAR_FILE=$(ls *.tar | head -n 1)
           ORIGINAL_NAME=$(echo "$TAR_FILE" | sed 's/\.tar//')
+          mkdir -p working_dir
           
           # 2. فك الضغط
-          mkdir -p working_dir
           tar -xvf "$TAR_FILE" -C working_dir
           
-          # 3. الصلاحيات (Root)
+          # 3. تثبيت صلاحيات الروت 0:0 (ضرورية باش يخدم فـ الأيكون)
           sudo chown -R root:root working_dir
           sudo chmod -R 755 working_dir
           
-          # 4. التجميع لـ .ngz بنفس الاسم
+          # 4. الضغط بنفس بنية الملف اللي صيفطتي (NGZ)
           cd working_dir
-          sudo tar --owner=0 --group=0 -cvzf "../${ORIGINAL_NAME}.ngz" *
+          # هاد السطر كيجمع الملفات بلا ما يدير مجلد رئيسي زايد لداخل
+          sudo tar --owner=0 --group=0 -cvzf "../${ORIGINAL_NAME}.ngz" .
           
           echo "FINAL_NAME=${ORIGINAL_NAME}.ngz" >> $GITHUB_ENV
 
