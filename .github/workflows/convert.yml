@@ -9,13 +9,14 @@ jobs:
       - name: Build
         run: |
           TAR_FILE=$(ls *.tar | head -n 1)
+          FILENAME=$(basename "$TAR_FILE" .tar)
           tar -xvf "$TAR_FILE"
           FOLDER=$(ls -d */ | head -n 1 | sed 's/\///')
           sudo chown -R root:root "$FOLDER"
           sudo chmod -R 755 "$FOLDER"
           cd "$FOLDER"
-          sudo tar --owner=0 --group=0 -cvzf ../Wolf_Remote.ngz *
+          sudo tar --owner=0 --group=0 -cvzf ../$FILENAME.ngz *
       - uses: actions/upload-artifact@v4
         with:
-          name: Plugin-Ready
-          path: Wolf_Remote.ngz
+          name: ${{ env.FILENAME }}
+          path: "*.ngz"
