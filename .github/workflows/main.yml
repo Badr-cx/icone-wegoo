@@ -1,7 +1,7 @@
 name: Auto Update VERIFIED_CANNON
 on:
   schedule:
-    - cron: '0 */3 * * *' # تحديث آلي كل 3 ساعات
+    - cron: '0 0 * * *' # سيتم التحديث مرة واحدة يومياً عند منتصف الليل (00:00 UTC)
   workflow_dispatch: # زر لتشغيله يدوياً في أي وقت
 
 jobs:
