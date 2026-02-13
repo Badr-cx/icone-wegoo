@@ -1,35 +1,24 @@
-name: Universal Tar to NGZ
+name: Wolf Remote Packer
 on:
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Build and Pack (Professional Mode)
+      - name: Build
         run: |
-          # 1. تحديد الملف وتجهيز المجلد
-          TAR_FILE=$(ls *.tar | head -n 1)
-          ORIGINAL_NAME=$(echo "$TAR_FILE" | sed 's/\.tar//')
-          mkdir -p working_dir
+          tar -xvf PLUGIN.YA7YAWI.tar
           
-          # 2. فك الضغط
-          tar -xvf "$TAR_FILE" -C working_dir
-          
-          # 3. تثبيت صلاحيات الروت 0:0 (ضرورية باش يخدم فـ الأيكون)
-          sudo chown -R root:root working_dir
-          sudo chmod -R 755 working_dir
-          
-          # 4. الضغط بنفس بنية الملف اللي صيفطتي (NGZ)
-          cd working_dir
-          # هاد السطر كيجمع الملفات بلا ما يدير مجلد رئيسي زايد لداخل
-          sudo tar --owner=0 --group=0 -cvzf "../${ORIGINAL_NAME}.ngz" .
-          
-          echo "FINAL_NAME=${ORIGINAL_NAME}.ngz" >> $GITHUB_ENV
+          # إعطاء صلاحيات الروت الكاملة
+          sudo chown -R root:root plugin-wolf/
+          sudo chmod -R 755 plugin-wolf/
+
+          # التجميع النهائي
+          cd plugin-wolf/
+          sudo tar --owner=0 --group=0 -cvzf ../Wolf_Remote.ngz *
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.FINAL_NAME }}
-          path: ${{ env.FINAL_NAME }}
+          name: Plugin-Ready
+          path: PLUGIN.YA7YAWI.ngz
