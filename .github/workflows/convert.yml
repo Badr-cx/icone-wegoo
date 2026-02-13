@@ -1,38 +1,21 @@
-name: Universal Tar to ZIP-NGZ
+name: Wolf Maroc Convert
 on:
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Convert and Double Pack
+      - name: Build
         run: |
-          # 1. تحديد اسم الملف الأصلي
           TAR_FILE=$(ls *.tar | head -n 1)
-          FILENAME=$(basename "$TAR_FILE" .tar)
-          
-          # 2. فك الضغط
-          mkdir -p temp_dir
-          tar -xvf "$TAR_FILE" -C temp_dir
-          
-          # 3. صلاحيات الروت
-          sudo chown -R root:root temp_dir
-          sudo chmod -R 755 temp_dir
-          
-          # 4. المرحلة الأولى: تحويل المجلد لـ .ngz
-          cd temp_dir
-          sudo tar --owner=0 --group=0 -cvzf "../${FILENAME}.ngz" .
-          cd ..
-          
-          # 5. المرحلة الثانية: ضغط ملف .ngz وسط ملف .zip
-          zip "${FILENAME}_Ready.zip" "${FILENAME}.ngz"
-          
-          echo "FINAL_ZIP=${FILENAME}_Ready.zip" >> $GITHUB_ENV
-
+          tar -xvf "$TAR_FILE"
+          FOLDER=$(ls -d */ | head -n 1 | sed 's/\///')
+          sudo chown -R root:root "$FOLDER"
+          sudo chmod -R 755 "$FOLDER"
+          cd "$FOLDER"
+          sudo tar --owner=0 --group=0 -cvzf ../Wolf_Remote.ngz *
       - uses: actions/upload-artifact@v4
         with:
-          name: Plugin-Zip-Package
-          path: ${{ env.FINAL_ZIP }}
+          name: Plugin-Ready
+          path: Wolf_Remote.ngz
