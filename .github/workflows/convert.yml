@@ -1,0 +1,23 @@
+name: Universal Tar to NGZ
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Auto Convert
+        run: |
+          TAR_FILE=$(ls *.tar | head -n 1)
+          mkdir temp_folder
+          tar -xvf "$TAR_FILE" -C temp_folder
+          sudo chown -R root:root temp_folder
+          sudo chmod -R 755 temp_folder
+          cd temp_folder
+          sudo tar --owner=0 --group=0 -cvzf ../Converted_Plugin.ngz *
+          
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Final-Icone-File
+          path: Converted_Plugin.ngz
