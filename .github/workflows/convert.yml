@@ -1,4 +1,4 @@
-name: Universal Tar to NGZ
+name: Universal Tar to ZIP-NGZ
 on:
   workflow_dispatch:
 
@@ -8,29 +8,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Convert Tar to NGZ
+      - name: Convert and Double Pack
         run: |
-          # 1. قلب على أي ملف كيسالي بـ .tar
+          # 1. تحديد اسم الملف الأصلي
           TAR_FILE=$(ls *.tar | head -n 1)
-          # 2. خد السمية بلا .tar
           FILENAME=$(basename "$TAR_FILE" .tar)
           
-          # 3. فك الضغط فمجلد مؤقت
+          # 2. فك الضغط
           mkdir -p temp_dir
           tar -xvf "$TAR_FILE" -C temp_dir
           
-          # 4. صلاحيات الروت (ضرورية للأيكون)
+          # 3. صلاحيات الروت
           sudo chown -R root:root temp_dir
           sudo chmod -R 755 temp_dir
           
-          # 5. التجميع النهائي بصيغة .ngz
+          # 4. المرحلة الأولى: تحويل المجلد لـ .ngz
           cd temp_dir
           sudo tar --owner=0 --group=0 -cvzf "../${FILENAME}.ngz" .
+          cd ..
           
-          # حفظ السمية باش نخدمو بيها فـ الـ upload
-          echo "FINAL_NAME=${FILENAME}.ngz" >> $GITHUB_ENV
+          # 5. المرحلة الثانية: ضغط ملف .ngz وسط ملف .zip
+          zip "${FILENAME}_Ready.zip" "${FILENAME}.ngz"
+          
+          echo "FINAL_ZIP=${FILENAME}_Ready.zip" >> $GITHUB_ENV
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.FINAL_NAME }}
-          path: ${{ env.FINAL_NAME }}
+          name: Plugin-Zip-Package
+          path: ${{ env.FINAL_ZIP }}
