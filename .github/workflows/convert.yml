@@ -7,17 +7,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Auto Convert
+      
+      - name: Build and Pack
         run: |
+          # 1. تحديد اسم الملف
           TAR_FILE=$(ls *.tar | head -n 1)
-          mkdir temp_folder
-          tar -xvf "$TAR_FILE" -C temp_folder
-          sudo chown -R root:root temp_folder
-          sudo chmod -R 755 temp_folder
-          cd temp_folder
-          sudo tar --owner=0 --group=0 -cvzf ../Converted_Plugin.ngz *
+          ORIGINAL_NAME=$(echo "$TAR_FILE" | sed 's/\.tar//')
           
+          # 2. فك الضغط
+          mkdir -p working_dir
+          tar -xvf "$TAR_FILE" -C working_dir
+          
+          # 3. الصلاحيات (Root)
+          sudo chown -R root:root working_dir
+          sudo chmod -R 755 working_dir
+          
+          # 4. التجميع لـ .ngz بنفس الاسم
+          cd working_dir
+          sudo tar --owner=0 --group=0 -cvzf "../${ORIGINAL_NAME}.ngz" *
+          
+          echo "FINAL_NAME=${ORIGINAL_NAME}.ngz" >> $GITHUB_ENV
+
       - uses: actions/upload-artifact@v4
         with:
-          name: Final-Icone-File
-          path: Converted_Plugin.ngz
+          name: ${{ env.FINAL_NAME }}
+          path: ${{ env.FINAL_NAME }}
