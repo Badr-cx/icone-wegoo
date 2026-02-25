@@ -7,45 +7,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Build and Convert (TAR or APK)
+      - name: Build
         run: |
-          # كنشوفو واش كاين شي ملف .tar ولا .apk
+          # كنشوفو أول ملف كاين سواء .tar ولا .apk
           FILE=$(ls *.tar *.apk 2>/dev/null | head -n 1)
           
           if [ -z "$FILE" ]; then
-            echo "Error: ملقينا حتى شي ملف .tar ولا .apk!"
+            echo "Error: No .tar or .apk file found!"
             exit 1
           fi
 
-          # كنجبدو السمية ديال الملف بلا extension
+          # كنجبدو السمية بلا extension (كيفما كانت .tar ولا .apk)
           FILENAME=$(basename "$FILE" | sed 's/\.[^.]*$//')
-          EXTENSION="${FILE##*.}"
           echo "FILENAME=$FILENAME" >> $GITHUB_ENV
           
-          echo "خدامين على ملف: $FILE (النوع: $EXTENSION)"
-
-          # كنصاوبو دوسي فين نخدمو
-          mkdir -p workspace_dir
-          
-          if [ "$EXTENSION" = "apk" ]; then
-            # إذا كان APK، كنستعملو unzip باش نفكوه
-            unzip "$FILE" -d workspace_dir/
+          # فك الضغط على حسب النوع
+          if [[ "$FILE" == *.tar ]]; then
+             tar -xvf "$FILE"
           else
-            # إذا كان TAR، كنستعملو tar -xvf
-            tar -xvf "$FILE" -C workspace_dir/
+             # بالنسبة لـ APK كنستعملو unzip
+             unzip "$FILE" -d "$FILENAME"
           fi
 
-          # كنعدلو الصلاحيات (Permissions) كيف طلبتي
-          sudo chown -R root:root workspace_dir
-          sudo chmod -R 755 workspace_dir
-
-          # كنجمعو كاع المحتوى فملف .ngz واحد
-          cd workspace_dir
-          sudo tar --owner=0 --group=0 -cvzf "../$FILENAME.ngz" .
+          # كنقلبو على الدوسي اللي تفتح (كيف درتي فـ الكود الأصلي)
+          FOLDER=$(ls -d */ | head -n 1 | sed 's/\///')
           
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+          # الصلاحيات والتحويل لـ .ngz
+          sudo chown -R root:root "$FOLDER"
+          sudo chmod -R 755 "$FOLDER"
+          cd "$FOLDER"
+          sudo tar --owner=0 --group=0 -cvzf "../$FILENAME.ngz" *
+          
+      - uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.FILENAME }}-converted
+          name: ${{ env.FILENAME }}
           path: ./*.ngz
