@@ -1,23 +1,51 @@
 name: Wolf Maroc Convert
 on:
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build
+
+      - name: Build and Convert (TAR or APK)
         run: |
-          TAR_FILE=$(ls *.tar | head -n 1)
-          FILENAME=$(basename "$TAR_FILE" .tar)
+          # كنشوفو واش كاين شي ملف .tar ولا .apk
+          FILE=$(ls *.tar *.apk 2>/dev/null | head -n 1)
+          
+          if [ -z "$FILE" ]; then
+            echo "Error: ملقينا حتى شي ملف .tar ولا .apk!"
+            exit 1
+          fi
+
+          # كنجبدو السمية ديال الملف بلا extension
+          FILENAME=$(basename "$FILE" | sed 's/\.[^.]*$//')
+          EXTENSION="${FILE##*.}"
           echo "FILENAME=$FILENAME" >> $GITHUB_ENV
-          tar -xvf "$TAR_FILE"
-          FOLDER=$(ls -d */ | head -n 1 | sed 's/\///')
-          sudo chown -R root:root "$FOLDER"
-          sudo chmod -R 755 "$FOLDER"
-          cd "$FOLDER"
-          sudo tar --owner=0 --group=0 -cvzf "../$FILENAME.ngz" *
-      - uses: actions/upload-artifact@v4
+          
+          echo "خدامين على ملف: $FILE (النوع: $EXTENSION)"
+
+          # كنصاوبو دوسي فين نخدمو
+          mkdir -p workspace_dir
+          
+          if [ "$EXTENSION" = "apk" ]; then
+            # إذا كان APK، كنستعملو unzip باش نفكوه
+            unzip "$FILE" -d workspace_dir/
+          else
+            # إذا كان TAR، كنستعملو tar -xvf
+            tar -xvf "$FILE" -C workspace_dir/
+          fi
+
+          # كنعدلو الصلاحيات (Permissions) كيف طلبتي
+          sudo chown -R root:root workspace_dir
+          sudo chmod -R 755 workspace_dir
+
+          # كنجمعو كاع المحتوى فملف .ngz واحد
+          cd workspace_dir
+          sudo tar --owner=0 --group=0 -cvzf "../$FILENAME.ngz" .
+          
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.FILENAME }}
+          name: ${{ env.FILENAME }}-converted
           path: ./*.ngz
