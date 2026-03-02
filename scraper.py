@@ -4,64 +4,70 @@ import socket
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-# المصادر المختارة بعناية
-SOURCES = [
+# المصادر "الوحوش"
+MAWA9I3 = [
     "https://vipsat.net/free-cccam-server.php",
     "https://www.cccambird.com/freecccam.php",
     "https://cccam-premium.pro/free-cccam/",
-    "https://raw.githubusercontent.com/yebekhe/TV-Logo/main/cccam.txt"
+    "https://www.boss-cccam.com/",
+    "https://www.sonic-cccam.com/free-cccam-6-months/",
+    "https://cccamgenerator.com/",
+    "https://www.cccam-free.com/free-cccam-1-month/"
 ]
 
-def measure_speed(line):
+def check_elite(line):
     line = line.strip()
-    clean_line = re.sub(r'#.*', '', line).strip()
-    parts = clean_line.split()
-    if len(parts) < 4: return None
+    # تنظيف السطر من أي خزعبلات HTML
+    line = re.sub('<[^<]+?>', '', line)
+    match = re.search(r'C:\s*([a-zA-Z0-9\-\.]+)\s+(\d+)\s+(\S+)\s+(\S+)', line, re.I)
+    if not match: return None
     
-    host, port = parts[1], parts[2]
+    host, port = match.group(1), match.group(2)
     try:
-        start_time = time.time()
-        # فحص صارم في أقل من ثانية
-        sock = socket.create_connection((host, int(port)), timeout=0.8)
-        latency = (time.time() - start_time) * 1000
-        sock.close()
-        return {"line": clean_line, "latency": latency}
+        start = time.time()
+        # فحص صارم: 0.6 ثانية كحد أقصى للرد
+        with socket.create_connection((host, int(port)), timeout=0.6):
+            latency = (time.time() - start) * 1000
+            return {
+                "line": f"C: {match.group(1)} {match.group(2)} {match.group(3)} {match.group(4)}",
+                "latency": latency
+            }
     except:
         return None
 
 def main():
-    print("🚀 جاري البحث عن أقوى سيرفر في العالم حالياً...")
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    raw_found = []
+    print("🌪️  جاري اكتساح المواقع وجلب السيرفرات...")
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0'}
+    all_content = ""
 
-    for url in SOURCES:
+    for url in MAWA9I3:
         try:
-            r = requests.get(url, headers=headers, timeout=10)
-            matches = re.findall(r'C:\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', r.text, re.I)
-            raw_found.extend(matches)
+            r = requests.get(url, headers=headers, timeout=12)
+            all_content += r.text + "\n"
         except: continue
 
-    unique_lines = list(set(raw_found))
-    verified_with_speed = []
+    # البحث عن السيرفرات بأي صيغة كانت
+    found = re.findall(r'C:?\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', all_content, re.I)
+    unique = list(set(found))
+    print(f"🔍 لقيت {len(unique)} سيرفر محتمل. جاري استخراج الأقوى على الإطلاق...")
 
-    with ThreadPoolExecutor(max_workers=50) as executor:
-        results = list(executor.map(measure_speed, unique_lines))
-        verified_with_speed = [r for r in results if r]
+    results = []
+    with ThreadPoolExecutor(max_workers=100) as ex:
+        results = [r for r in ex.map(check_elite, unique) if r]
 
-    if verified_with_speed:
-        # ترتيب حسب السرعة (الـ Ping الأصغر هو الأول)
-        verified_with_speed.sort(key=lambda x: x['latency'])
+    if results:
+        # الترتيب حسب السرعة (الأسرع هو الأول)
+        results.sort(key=lambda x: x['latency'])
         
-        # اختيار أسرع واحد فقط
-        best_server = verified_with_speed[0]
-
+        # غنخليو ليك أقوى 3 سيرفرات باش إلا طاح واحد يخدم لاخور فالبلاصة
         with open("CCcam.cfg", "w") as f:
-            f.write(f"{best_server['line']} # ⚡ TOP SERVER | {int(best_server['latency'])}ms\n")
+            for i, res in enumerate(results[:3]):
+                f.write(f"{res['line']} # Rank_{i+1}_{int(res['latency'])}ms\n")
         
-        print(f"✅ تم الحفظ! أقوى سيرفر هو: {best_server['line']}")
-        print(f"⏱️ سرعة الاستجابة: {int(best_server['latency'])}ms")
+        print(f"✅ ناضي! أقوى سيرفر حالياً هو: {results[0]['line']}")
+        print(f"🚀 الـ Ping ديالو: {int(results[0]['latency'])}ms (طيارة)")
     else:
-        print("❌ لم يتم العثور على أي سيرفر شغال.")
+        print("⚠️ المواقع دابا مزيرين، جرب من بعد 10 دقايق كيكون التحديث.")
 
 if __name__ == "__main__":
     main()
