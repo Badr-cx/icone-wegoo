@@ -4,69 +4,68 @@ import socket
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-# المصادر المباشرة (Sources) - حيدنا القدام وزدنا اللي فيهم التحديث دابا
+# المصادر "السرية" اللي كتحط السطور بالـ CAID والكومنتات
 SOURCES = [
+    "https://raw.githubusercontent.com/yousef-94/Free-CCcam/main/CCcam.txt",
+    "https://raw.githubusercontent.com/mizstd/free-cccam-servers/main/cccam.txt",
     "https://vipsat.net/free-cccam-server.php",
-    "https://www.cccambird.com/freecccam.php",
-    "https://cccam-premium.pro/free-cccam/",
-    "http://www.casacam.net/free-cccam-server/",
-    "https://raw.githubusercontent.com/mizstd/free-cccam-servers/main/cccam.txt"
+    "https://www.cccambird.com/freecccam.php"
 ]
 
-def measure_speed(line):
+def check_line(line):
     line = line.strip()
-    # تنظيف السطر من أي زوائد
-    match = re.search(r'C:\s*([a-zA-Z0-9\-\.]+)\s+(\d+)\s+(\S+)\s+(\S+)', line, re.I)
-    if not match: return None
+    # كيقبل C و N وكيقرا حتى الكومنتات اللي موراهم
+    if not re.match(r'^[CN]:', line, re.I): return None
     
-    host, port = match.group(1), match.group(2)
+    # استخراج الهوست والبورت للفحص
+    parts = line.split()
+    if len(parts) < 3: return None
+    host, port = parts[1], parts[2]
+    
     try:
-        start_time = time.time()
-        # فحص سريع جداً (0.5 ثانية)
-        sock = socket.create_connection((host, int(port)), timeout=0.5)
-        latency = (time.time() - start_time) * 1000
-        sock.close()
-        return {"line": f"C: {match.group(1)} {match.group(2)} {match.group(3)} {match.group(4)}", "latency": latency}
+        start = time.time()
+        # فحص جودة الاتصال
+        with socket.create_connection((host, int(port)), timeout=0.5):
+            latency = (time.time() - start) * 1000
+            return {"line": line, "latency": latency}
     except:
         return None
 
 def main():
-    print("🚀 جاري صيد أحدث سيرفر ناضي...")
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    print("🎯 جاري اصطياد السيرفرات 'النخبة' (CAID & Comments)...")
     all_raw = ""
+    headers = {'User-Agent': 'Mozilla/5.0'}
 
     for url in SOURCES:
         try:
-            # زدنا هاد البارامتر باش نكسرو الكاش (Cache)
-            r = requests.get(url + f"?update={int(time.time())}", headers=headers, timeout=10)
+            # كسر الكاش باش نجيبو ديال هاد الدقيقة
+            r = requests.get(f"{url}?t={int(time.time())}", headers=headers, timeout=10)
             all_raw += r.text + "\n"
         except: continue
 
-    # استخراج السطور
-    found = re.findall(r'C:?\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', all_raw, re.I)
-    unique_lines = list(set(found))
+    # Regex كيجيب السطر كامل بالكومنت ديالو #
+    lines = re.findall(r'[CN]:\s*\S+\s+\d+\s+\S+\s+\S+.*', all_raw, re.I)
+    unique_lines = list(set(lines))
     
-    verified_with_speed = []
-    with ThreadPoolExecutor(max_workers=50) as executor:
-        results = list(executor.map(measure_speed, unique_lines))
-        verified_with_speed = [r for r in results if r]
+    print(f"🔍 لقيت {len(unique_lines)} سيرفر. جاري اختيار الأسرع...")
 
-    if verified_with_speed:
-        # ترتيب حسب الأسرع
-        verified_with_speed.sort(key=lambda x: x['latency'])
-        best = verified_with_speed[0]
+    results = []
+    with ThreadPoolExecutor(max_workers=60) as ex:
+        results = [r for r in ex.map(check_line, unique_lines) if r]
 
-        # حفظ في CCcam.cfg (البياسة الواعرة)
-        with open("CCcam.cfg", "w") as f:
-            f.write(best['line'] + "\n")
-            
-        # حفظ في الملف التاني اللي عندك ف GitHub
-        with open("VERIFIED_CANNON.cfg", "w") as f:
-            f.write(f"### TOP SERVER FOUND ###\n{best['line']}\n")
-            
-        print(f"✅ تم! أقوى سيرفر دابا هو: {best['line']} ({int(best['latency'])}ms)")
+    if results:
+        # الترتيب حسب السرعة
+        results.sort(key=lambda x: x['latency'])
+        
+        # غنخليو ليك Top 5 حيت هاد النوع كيكون فيه "الضرب" بزاف
+        with open("CCcam.cfg", "w", encoding="utf-8") as f:
+            for res in results[:5]:
+                f.write(res['line'] + "\n")
+        
+        print(f"✅ تم! ها السيرفر الواعر اللي فيه الـ CAID:\n{results[0]['line']}")
+        print(f"⚡ الـ Ping: {int(results[0]['latency'])}ms")
     else:
-        print("❌ مالقيت حتى سيرفر جديد خدام.")
+        print("❌ والو، جرب طفي الـ VPN إلا كنتي خدام بيه.")
 
 if __name__ == "__main__":
     main()
