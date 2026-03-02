@@ -2,72 +2,71 @@ import requests
 import re
 import socket
 import time
-import random
 from concurrent.futures import ThreadPoolExecutor
 
-# مصادر "حارقة" كتحط التحديث بالثانية
-MAWA9I3 = [
-    f"https://vipsat.net/free-cccam-server.php?v={random.randint(1, 99999)}",
-    f"https://www.cccambird.com/freecccam.php?v={random.randint(1, 99999)}",
+# المصادر المباشرة (Sources) - حيدنا القدام وزدنا اللي فيهم التحديث دابا
+SOURCES = [
+    "https://vipsat.net/free-cccam-server.php",
+    "https://www.cccambird.com/freecccam.php",
     "https://cccam-premium.pro/free-cccam/",
     "http://www.casacam.net/free-cccam-server/",
-    "https://www.cccamgenerator.com/free-cccam-24h/",
-    "https://sonic-cccam.com/free-cccam-6-months/"
+    "https://raw.githubusercontent.com/mizstd/free-cccam-servers/main/cccam.txt"
 ]
 
-def check_elite(line):
+def measure_speed(line):
     line = line.strip()
+    # تنظيف السطر من أي زوائد
     match = re.search(r'C:\s*([a-zA-Z0-9\-\.]+)\s+(\d+)\s+(\S+)\s+(\S+)', line, re.I)
     if not match: return None
     
     host, port = match.group(1), match.group(2)
     try:
-        start = time.time()
-        # فحص صارم جداً (0.5 ثانية) باش نجيبو غير اللي طيارة
-        with socket.create_connection((host, int(port)), timeout=0.5):
-            latency = (time.time() - start) * 1000
-            return {"line": f"C: {match.group(1)} {match.group(2)} {match.group(3)} {match.group(4)}", "latency": latency}
+        start_time = time.time()
+        # فحص سريع جداً (0.5 ثانية)
+        sock = socket.create_connection((host, int(port)), timeout=0.5)
+        latency = (time.time() - start_time) * 1000
+        sock.close()
+        return {"line": f"C: {match.group(1)} {match.group(2)} {match.group(3)} {match.group(4)}", "latency": latency}
     except:
         return None
 
 def main():
-    print("🧨 جاري كسر الـ Cache وجلب سيرفرات اللحظة...")
-    # هيدرز متنوعة باش الموقع ما يعرفكش
-    headers = {
-        'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{random.randint(100, 122)}.0.0.0 Safari/537.36',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-    }
-    
-    all_content = ""
-    for url in MAWA9I3:
+    print("🚀 جاري صيد أحدث سيرفر ناضي...")
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    all_raw = ""
+
+    for url in SOURCES:
         try:
-            r = requests.get(url, headers=headers, timeout=10)
-            if r.status_code == 200:
-                all_content += r.text + "\n"
+            # زدنا هاد البارامتر باش نكسرو الكاش (Cache)
+            r = requests.get(url + f"?update={int(time.time())}", headers=headers, timeout=10)
+            all_raw += r.text + "\n"
         except: continue
 
-    # صيد السيرفرات بـ Regex مطور
-    found = re.findall(r'C:?\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', all_content, re.I)
-    unique = list(set(found))
-    print(f"🔍 لقيت {len(unique)} سيرفر محتمل. جاري تصفية 'الخردة' واختيار الأسرع...")
+    # استخراج السطور
+    found = re.findall(r'C:?\s*[a-zA-Z0-9\-\.]+\s+\d+\s+\S+\s+\S+', all_raw, re.I)
+    unique_lines = list(set(found))
+    
+    verified_with_speed = []
+    with ThreadPoolExecutor(max_workers=50) as executor:
+        results = list(executor.map(measure_speed, unique_lines))
+        verified_with_speed = [r for r in results if r]
 
-    results = []
-    with ThreadPoolExecutor(max_workers=50) as ex:
-        results = [r for r in ex.map(check_elite, unique) if r]
+    if verified_with_speed:
+        # ترتيب حسب الأسرع
+        verified_with_speed.sort(key=lambda x: x['latency'])
+        best = verified_with_speed[0]
 
-    if results:
-        # ترتيب حسب السرعة (الأسرع هو الأول)
-        results.sort(key=lambda x: x['latency'])
-        
-        # غانخليو ليك أسرع واحد فقط فـ CCcam.cfg باش الجهاز يطير
+        # حفظ في CCcam.cfg (البياسة الواعرة)
         with open("CCcam.cfg", "w") as f:
-            f.write(f"{results[0]['line']}\n")
-        
-        print(f"✅ ناضي! السيرفر الجديد والواعر هو: {results[0]['line']}")
-        print(f"⏱️ الـ Ping: {int(results[0]['latency'])}ms (سرعة خيالية)")
+            f.write(best['line'] + "\n")
+            
+        # حفظ في الملف التاني اللي عندك ف GitHub
+        with open("VERIFIED_CANNON.cfg", "w") as f:
+            f.write(f"### TOP SERVER FOUND ###\n{best['line']}\n")
+            
+        print(f"✅ تم! أقوى سيرفر دابا هو: {best['line']} ({int(best['latency'])}ms)")
     else:
-        print("❌ والو، السيرفرات اللي كاينين دابا إما طافيين أو المواقع معطلين فالتحديث.")
+        print("❌ مالقيت حتى سيرفر جديد خدام.")
 
 if __name__ == "__main__":
     main()
