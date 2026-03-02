@@ -4,7 +4,7 @@ import socket
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-# المصادر الواعرة
+# المصادر المختارة بعناية
 SOURCES = [
     "https://vipsat.net/free-cccam-server.php",
     "https://www.cccambird.com/freecccam.php",
@@ -14,7 +14,6 @@ SOURCES = [
 
 def measure_speed(line):
     line = line.strip()
-    # تنظيف السطر من أي تعاليق قديمة
     clean_line = re.sub(r'#.*', '', line).strip()
     parts = clean_line.split()
     if len(parts) < 4: return None
@@ -22,16 +21,16 @@ def measure_speed(line):
     host, port = parts[1], parts[2]
     try:
         start_time = time.time()
-        # فحص الاتصال
+        # فحص صارم في أقل من ثانية
         sock = socket.create_connection((host, int(port)), timeout=0.8)
-        latency = (time.time() - start_time) * 1000  # تحويل لـ ms
+        latency = (time.time() - start_time) * 1000
         sock.close()
         return {"line": clean_line, "latency": latency}
     except:
         return None
 
 def main():
-    print("🎯 جاري صيد السيرفرات وقياس السرعة...")
+    print("🚀 جاري البحث عن أقوى سيرفر في العالم حالياً...")
     headers = {'User-Agent': 'Mozilla/5.0'}
     raw_found = []
 
@@ -45,27 +44,24 @@ def main():
     unique_lines = list(set(raw_found))
     verified_with_speed = []
 
-    # فحص السرعة بـ Threads
     with ThreadPoolExecutor(max_workers=50) as executor:
         results = list(executor.map(measure_speed, unique_lines))
         verified_with_speed = [r for r in results if r]
 
-    # 🔥 الترتيب من الأسرع (أقل ms) إلى الأبطأ
-    verified_with_speed.sort(key=lambda x: x['latency'])
-
-    # خذ أفضل 10 سيرفرات فقط باش الجهاز يطير
-    top_servers = verified_with_speed[:10]
-
-    if top_servers:
-        with open("CCcam.cfg", "w") as f:
-            for item in top_servers:
-                # حفظ السطر مع كتابة الـ ms حداه غير باش تعرف السرعة
-                f.write(f"{item['line']} # ⚡ {int(item['latency'])}ms\n")
+    if verified_with_speed:
+        # ترتيب حسب السرعة (الـ Ping الأصغر هو الأول)
+        verified_with_speed.sort(key=lambda x: x['latency'])
         
-        print(f"✅ تم! أقوى سيرفر هو: {top_servers[0]['line']} ({int(top_servers[0]['latency'])}ms)")
-        print(f"🚀 الملف CCcam.cfg فيه دابا أفضل {len(top_servers)} سيرفرات فـ العالم حالياً.")
+        # اختيار أسرع واحد فقط
+        best_server = verified_with_speed[0]
+
+        with open("CCcam.cfg", "w") as f:
+            f.write(f"{best_server['line']} # ⚡ TOP SERVER | {int(best_server['latency'])}ms\n")
+        
+        print(f"✅ تم الحفظ! أقوى سيرفر هو: {best_server['line']}")
+        print(f"⏱️ سرعة الاستجابة: {int(best_server['latency'])}ms")
     else:
-        print("⚠️ مالقيت حتى سيرفر شغال مزيان.")
+        print("❌ لم يتم العثور على أي سيرفر شغال.")
 
 if __name__ == "__main__":
     main()
