@@ -1,33 +1,47 @@
-name: Test GitHub Scraper
+name: GitHub Storage Test
 
 on:
-  workflow_dispatch: # باش تخدمو بيدك
+  workflow_dispatch: # كيعطيك بوطونة باش تخدمو يدويا
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    
+    # ضروري باش GitHub يقدر يكتب الملف فـ الحساب ديالك
     permissions:
-      contents: write # ضروري باش GitHub يقدر يحط الملف فـ الـ Repo
+      contents: write
 
     steps:
-      - name: Checkout code
+      # 1. كيجيب الملفات اللي فـ GitHub دابا
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
+      # 2. كينصب Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
+      # 3. كينصب المكتبات
       - name: Install dependencies
         run: pip install requests
 
-      - name: Run Scraper
+      # 4. كيشغل السكريبت (تأكد أن سميتو scraper.py فـ الحقيقة)
+      - name: Run Scraper Script
         run: python scraper.py
 
-      - name: Commit and Push file
+      # 5. كياخد ملف ncam.server وكيحطو فـ GitHub أوتوماتيك
+      - name: Save ncam.server to GitHub
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add ncam.server
-          git commit -m "Update ncam.server with new servers" || echo "No changes to commit"
-          git push
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # كيتأكد واش السكريبت كريا الملف فعلا
+          if [ -f ncam.server ]; then
+            git add ncam.server
+            git commit -m "Update ncam.server: $(date)"
+            git push
+          else
+            echo "❌ Error: ncam.server file not found!"
+            exit 1
+          fi
