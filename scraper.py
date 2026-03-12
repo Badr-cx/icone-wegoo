@@ -1,80 +1,47 @@
 import requests
 import re
-import socket
-import time
-from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+import os
 
-# القنوات اللي اخترتيها (Preview Mode)
-TELEGRAM_CHANNELS = [
-    "https://t.me/s/dsererer",
-    "https://t.me/s/tvsatcccam"
-]
+# إعدادات
+DROPBOX_TOKEN = os.getenv('DROPBOX_TOKEN')
+# كيجيب التاريخ ديال اليوم أوتوماتيكيا (YYYY-MM-DD)
+today = datetime.now().strftime('%Y-%m-%d')
+URL = f"https://testious.com/old-free-cccam-servers/{today}/"
 
-def clean_line(line):
-    """تنظيف سطر السيرفر من بقايا HTML ورموز التيليجرام"""
-    line = re.sub(r'<[^>]*>', '', line) # مسح Tags
-    line = line.replace('&nbsp;', ' ').replace('&amp;', '&').strip()
-    return line
-
-def check_line(line):
-    line = clean_line(line)
+def scrape_and_upload():
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    print(f"Connecting to: {URL}")
     
-    # التأكد أن السطر يبدأ بـ C: أو N: وفيه الهوست والبورت
-    if not re.match(r'^[CN]:', line, re.I): return None
-    
-    parts = line.split()
-    if len(parts) < 4: return None
-    
-    host, port = parts[1], parts[2]
     try:
-        start = time.time()
-        # فحص جودة الاتصال في 0.5 ثانية لضمان التلوين السريع
-        with socket.create_connection((host, int(port)), timeout=0.5):
-            latency = (time.time() - start) * 1000
-            return {"line": line, "latency": latency}
-    except:
-        return None
-
-def main():
-    print("📡 جاري استخراج السيرفرات من قنوات Telegram...")
-    all_raw = ""
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-    }
-
-    for url in TELEGRAM_CHANNELS:
-        try:
-            # كسر الكاش لضمان جلب آخر الميساجات
-            r = requests.get(f"{url}?t={int(time.time())}", headers=headers, timeout=15)
-            if r.status_code == 200:
-                all_raw += r.text + "\n"
-        except: continue
-
-    # البحث عن السطور التي تبدأ بـ C: أو N: حتى نهاية الكومنت #
-    # هاد Regex كيجيب السطر "البياسة" اللي فيه CAID والديتاي
-    lines = re.findall(r'[CN]:\s*[^<>\n]+', all_raw, re.I)
-    
-    unique_lines = list(set(lines))
-    print(f"🔍 لقيت {len(unique_lines)} سيرفر محتمل في القنوات. جاري الفحص...")
-
-    results = []
-    with ThreadPoolExecutor(max_workers=50) as ex:
-        results = [r for r in ex.map(check_line, unique_lines) if r]
-
-    if results:
-        # ترتيب حسب السرعة (الأسرع هو الأول)
-        results.sort(key=lambda x: x['latency'])
+        response = requests.get(URL, headers=headers, timeout=20)
+        # البحث عن السيرفرات الشغالة فقط [OK]
+        matches = re.findall(r'C:\s+([^\s]+)\s+(\d+)\s+([^\s]+)\s+([^\s]+).*?OK', response.text, re.IGNORECASE)
         
-        # حفظ أقوى 10 سيرفرات في ملف CCcam.cfg
-        with open("CCcam.cfg", "w", encoding="utf-8") as f:
-            for res in results[:10]:
-                f.write(res['line'] + "\n")
+        if not matches:
+            print("No active servers found today.")
+            return
+
+        config_data = ""
+        for i, (host, port, user, pwd) in enumerate(matches):
+            config_data += f"[reader]\nlabel = Testious_OK_{i+1}\nprotocol = cccam\ndevice = {host},{port}\nuser = {user}\npassword = {pwd}\ngroup = 1\nroot = 1\ndisablecrccws = 1\nccckeepalive = 1\naudisabled = 1\n\n"
+
+        # الرفع لـ Dropbox (Overwrite للملف القديم)
+        dbx_url = "https://content.dropboxapi.com/2/files/upload"
+        dbx_headers = {
+            "Authorization": f"Bearer {DROPBOX_TOKEN}",
+            "Dropbox-API-Arg": '{"path": "/ncam.server","mode": "overwrite"}',
+            "Content-Type": "application/octet-stream"
+        }
+        r = requests.post(dbx_url, headers=dbx_headers, data=config_data.encode('utf-8'))
         
-        print(f"✅ تم! جلبنا السيرفرات من التيليجرام بنجاح.")
-        print(f"🎯 أسرع سيرفر لقيناه: {results[0]['line']}")
-        print(f"⚡ الـ Ping: {int(results[0]['latency'])}ms (ثابت وممتاز للتلوين)")
-    else:
-        print("❌ لم يتم العثور على سيرفرات شغالة حالياً في القنوات.")
+        if r.status_code == 200:
+            print(f"✅ Success! {len(matches)} servers uploaded to Dropbox.")
+        else:
+            print(f"❌ Dropbox Error: {r.text}")
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
-    main()
+    scrape_and_upload()
