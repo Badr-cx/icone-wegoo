@@ -1,35 +1,33 @@
-name: Daily Server Update
+name: Test GitHub Scraper
 
 on:
-  schedule:
-    # هاد الكرون كيعني الخدمة غتبدا كل نهار مع 1 ديال الصباح
-    - cron: '0 1 * * *'
-  workflow_dispatch:
-    # هاد الخيار كيعطيك بوطونة باش تخدم السكريبت يدوياً وقتما بغيتي للتجربة
+  workflow_dispatch: # باش تخدمو بيدك
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # ضروري باش GitHub يقدر يحط الملف فـ الـ Repo
 
     steps:
-      # 1. كيجيب الكود من الـ Repository ديالك
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2. كينصب بايثون فـ السيرفر ديال GitHub
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
-      # 3. كينصب المكتبات اللي غنحتاجو (requests)
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
+        run: pip install requests
 
-      # 4. كيشغل السكريبت ديالك وكيعطيه الـ Token ديال Dropbox
       - name: Run Scraper
-        env:
-          DROPBOX_TOKEN: ${{ secrets.DROPBOX_TOKEN }}
         run: python scraper.py
+
+      - name: Commit and Push file
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add ncam.server
+          git commit -m "Update ncam.server with new servers" || echo "No changes to commit"
+          git push
