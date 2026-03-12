@@ -1,21 +1,35 @@
 name: Daily Server Update
+
 on:
   schedule:
-    - cron: '0 1 * * *' # كيخدم مع 1 ديال الصباح كل نهار
-  workflow_dispatch: # زر لتشغيله يدوياً للتجربة
+    # هاد الكرون كيعني الخدمة غتبدا كل نهار مع 1 ديال الصباح
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    # هاد الخيار كيعطيك بوطونة باش تخدم السكريبت يدوياً وقتما بغيتي للتجربة
 
 jobs:
-  run-scraper:
+  build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      # 1. كيجيب الكود من الـ Repository ديالك
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. كينصب بايثون فـ السيرفر ديال GitHub
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-      - name: Install Dependencies
-        run: pip install requests
+
+      # 3. كينصب المكتبات اللي غنحتاجو (requests)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      # 4. كيشغل السكريبت ديالك وكيعطيه الـ Token ديال Dropbox
       - name: Run Scraper
         env:
           DROPBOX_TOKEN: ${{ secrets.DROPBOX_TOKEN }}
-        run: python script.py
+        run: python scraper.py
