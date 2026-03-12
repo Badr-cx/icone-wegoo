@@ -1,31 +1,21 @@
-name: Auto Update VERIFIED_CANNON
+name: Daily Server Update
 on:
   schedule:
-    - cron: '0 0 * * *' # سيتم التحديث مرة واحدة يومياً عند منتصف الليل (00:00 UTC)
-  workflow_dispatch: # زر لتشغيله يدوياً في أي وقت
+    - cron: '0 1 * * *' # كيخدم مع 1 ديال الصباح كل نهار
+  workflow_dispatch: # زر لتشغيله يدوياً للتجربة
 
 jobs:
-  build:
+  run-scraper:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      - name: Setup Python
+      - uses: actions/checkout@v3
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
-
-      - name: Install Requests
+          python-version: '3.x'
+      - name: Install Dependencies
         run: pip install requests
-
-      - name: Execute Scraper
-        run: python scraper.py
-
-      - name: Push to Repository
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add VERIFIED_CANNON.cfg
-          git commit -m "🚀 Update VERIFIED_CANNON.cfg: $(date)" || exit 0
-          git push
+      - name: Run Scraper
+        env:
+          DROPBOX_TOKEN: ${{ secrets.DROPBOX_TOKEN }}
+        run: python script.py
