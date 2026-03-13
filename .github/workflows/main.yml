@@ -1,9 +1,12 @@
-name: Update Ncam Servers
+name: Update Ncam Server
 
 on:
+  push:
+    branches:
+      - main
   schedule:
-    - cron: '0 */6 * * *' # كيخدم بوحدو كل 6 سوايع
-  workflow_dispatch:      # كيعطيك بوطون باش تخدمو يدويّاً وقتما بغيتي
+    - cron: '0 */6 * * *' # كايخدم بوحدو كل 6 سوايع
+  workflow_dispatch:      # بوطون باش تخدمو يدويّاً وقتما بغيتي
 
 jobs:
   build:
@@ -18,11 +21,6 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
-
       - name: Run Scraper and Decoder
         run: python scraper.py
 
@@ -32,10 +30,8 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add ncam.server
           
-          # هادا هو السر باش ما يعطيكش Error إيلا كان الملف هو هو
-          if git diff --quiet && git diff --staged --quiet; then
-            echo "No changes detected, skipping commit."
-          else
-            git commit -m "Update servers: $(date +'%Y-%m-%d %H:%M')"
-            git push
-          fi
+          # هاد السطر هو "الفكاك" ديال المشكل
+          # كايشوف واش كاين شي تغيير، إيلا ماكاينش كايخرج بسلام بلا Error
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto Update: $(date +'%Y-%m-%d %H:%M')" && git push)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
