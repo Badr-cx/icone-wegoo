@@ -1,15 +1,1 @@
-[reader]
-label                         = OrcaGold_Server_1
-protocol                      = cccam
-device                        = free.CCcamhub.Com,14200
-user                          = n52cmm
-password                      = CCcamhub.Com
-group                         = 1
-root                          = 1
-inactivitytimeout             = 30
-reconnecttimeout              = 2
-disablecrccws                 = 1
-cccversion                    = 2.3.2
-ccckeepalive                  = 1
-audisabled                    = 1
-
+C: free.CCcamhub.Com 14200 n52cmm CCcamhub.Com # v2.0.11-2892
