@@ -6,7 +6,7 @@ from datetime import datetime
 today = datetime.now().strftime('%Y-%m-%d')
 URL = f"https://testious.com/old-free-cccam-servers/{today}/"
 
-def scrape_to_ncam():
+def scrape_to_star_c():
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
@@ -14,46 +14,25 @@ def scrape_to_ncam():
     try:
         response = requests.get(URL, headers=headers, timeout=20)
         
-        # التعديل هنا: السكريبت غايقلب دابا غير على السطورة اللي كيساليو بـ [OK]
-        # هادي هي الطريقة باش كنجيبو أقوى السيرفرات اللي ديجا تيستاهوم الموقع
+        # كيجلب السيرفرات اللي حداهم [OK] لضمان القوة
         matches = re.findall(r'C:\s+([^\s]+)\s+(\d+)\s+([^\s]+)\s+([^\s]+).*?\[OK\]', response.text, re.IGNORECASE)
-        
-        config_template = """[reader]
-label                         = OrcaGold_Server_{index}
-protocol                      = cccam
-device                        = {host},{port}
-user                          = {user}
-password                      = {pwd}
-group                         = 1
-root                          = 1
-inactivitytimeout             = 30
-reconnecttimeout              = 2
-disablecrccws                 = 1
-cccversion                    = 2.3.2
-ccckeepalive                  = 1
-audisabled                    = 1
-
-"""
         
         final_content = ""
         
         if matches:
-            for i, (host, port, user, pwd) in enumerate(matches):
-                final_content += config_template.format(
-                    index=i+1,
-                    host=host,
-                    port=port,
-                    user=user,
-                    pwd=pwd
-                )
-            print(f"✅ Success! Found {len(matches)} ACTIVE servers [OK].")
+            for host, port, user, pwd in matches:
+                # التنسيق اللي طلبتي بضبط مع الكومنت فالاخير
+                final_content += f"C: {host} {port} {user} {pwd} # v2.0.11-2892\n"
+            
+            print(f"✅ Done! {len(matches)} Servers generated in Star C format.")
         else:
-            # إيلا مالقاش [OK]، كيجيب السيرفرات العاديين باش ما يبقاش الملف خاوي
-            print("⚠️ No [OK] servers found, fetching available ones...")
+            # إيلا مالقاش [OK] كيهز العاديين
+            print("⚠️ No [OK] found, fetching available ones...")
             matches_all = re.findall(r'C:\s+([^\s]+)\s+(\d+)\s+([^\s]+)\s+([^\s]+)', response.text, re.IGNORECASE)
-            for i, (host, port, user, pwd) in enumerate(matches_all[:10]): # ناخدو أحسن 10
-                final_content += config_template.format(index=i+1, host=host, port=port, user=user, pwd=pwd)
+            for host, port, user, pwd in matches_all[:15]:
+                final_content += f"C: {host} {port} {user} {pwd} # v2.0.11-2892\n"
 
+        # حفظ النتيجة فـ ncam.server
         with open("ncam.server", "w") as f:
             f.write(final_content)
 
@@ -61,4 +40,4 @@ audisabled                    = 1
         print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
-    scrape_to_ncam()
+    scrape_to_star_c()
