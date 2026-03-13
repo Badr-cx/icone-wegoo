@@ -1,47 +1,41 @@
-name: GitHub Storage Test
+name: Update Ncam Servers
 
 on:
-  workflow_dispatch: # كيعطيك بوطونة باش تخدمو يدويا
+  schedule:
+    - cron: '0 */6 * * *' # كيخدم بوحدو كل 6 سوايع
+  workflow_dispatch:      # كيعطيك بوطون باش تخدمو يدويّاً وقتما بغيتي
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    # ضروري باش GitHub يقدر يكتب الملف فـ الحساب ديالك
-    permissions:
-      contents: write
 
     steps:
-      # 1. كيجيب الملفات اللي فـ GitHub دابا
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2. كينصب Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.9'
 
-      # 3. كينصب المكتبات
       - name: Install dependencies
-        run: pip install requests
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
-      # 4. كيشغل السكريبت (تأكد أن سميتو scraper.py فـ الحقيقة)
-      - name: Run Scraper Script
+      - name: Run Scraper and Decoder
         run: python scraper.py
 
-      # 5. كياخد ملف ncam.server وكيحطو فـ GitHub أوتوماتيك
-      - name: Save ncam.server to GitHub
+      - name: Commit and Push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+          git add ncam.server
           
-          # كيتأكد واش السكريبت كريا الملف فعلا
-          if [ -f ncam.server ]; then
-            git add ncam.server
-            git commit -m "Update ncam.server: $(date)"
-            git push
+          # هادا هو السر باش ما يعطيكش Error إيلا كان الملف هو هو
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "No changes detected, skipping commit."
           else
-            echo "❌ Error: ncam.server file not found!"
-            exit 1
+            git commit -m "Update servers: $(date +'%Y-%m-%d %H:%M')"
+            git push
           fi
