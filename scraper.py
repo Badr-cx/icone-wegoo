@@ -1,9 +1,8 @@
 import requests
 import re
 from datetime import datetime
-import os
 
-# رابط اليوم من موقع Testious
+# كيجيب التاريخ ديال اليوم أوتوماتيكياً
 today = datetime.now().strftime('%Y-%m-%d')
 URL = f"https://testious.com/old-free-cccam-servers/{today}/"
 
@@ -14,12 +13,13 @@ def scrape_to_ncam():
     
     try:
         response = requests.get(URL, headers=headers, timeout=20)
-        # جلب الهوست والبورت واليوزر والباص
-        matches = re.findall(r'C:\s+([^\s]+)\s+(\d+)\s+([^\s]+)\s+([^\s]+)', response.text, re.IGNORECASE)
         
-        # الإعدادات اللي طلبتيها (الزربة والثبات)
+        # التعديل هنا: السكريبت غايقلب دابا غير على السطورة اللي كيساليو بـ [OK]
+        # هادي هي الطريقة باش كنجيبو أقوى السيرفرات اللي ديجا تيستاهوم الموقع
+        matches = re.findall(r'C:\s+([^\s]+)\s+(\d+)\s+([^\s]+)\s+([^\s]+).*?\[OK\]', response.text, re.IGNORECASE)
+        
         config_template = """[reader]
-label                         = {label}
+label                         = OrcaGold_Server_{index}
 protocol                      = cccam
 device                        = {host},{port}
 user                          = {user}
@@ -39,22 +39,23 @@ audisabled                    = 1
         
         if matches:
             for i, (host, port, user, pwd) in enumerate(matches):
-                # كيطبق القالب على كل سيرفر لقى
                 final_content += config_template.format(
-                    label=f"OrcaGold_Server_{i+1}",
+                    index=i+1,
                     host=host,
                     port=port,
                     user=user,
                     pwd=pwd
                 )
+            print(f"✅ Success! Found {len(matches)} ACTIVE servers [OK].")
         else:
-            final_content = "# No servers found for today yet\n"
+            # إيلا مالقاش [OK]، كيجيب السيرفرات العاديين باش ما يبقاش الملف خاوي
+            print("⚠️ No [OK] servers found, fetching available ones...")
+            matches_all = re.findall(r'C:\s+([^\s]+)\s+(\d+)\s+([^\s]+)\s+([^\s]+)', response.text, re.IGNORECASE)
+            for i, (host, port, user, pwd) in enumerate(matches_all[:10]): # ناخدو أحسن 10
+                final_content += config_template.format(index=i+1, host=host, port=port, user=user, pwd=pwd)
 
-        # حفظ النتيجة في الملف اللي غيقرأه البلوجين
         with open("ncam.server", "w") as f:
             f.write(final_content)
-        
-        print(f"✅ Created ncam.server with {len(matches)} servers in Dhoom format.")
 
     except Exception as e:
         print(f"❌ Error: {e}")
