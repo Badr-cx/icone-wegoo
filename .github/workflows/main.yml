@@ -1,15 +1,16 @@
-name: Update Ncam Server
+name: Auto Update Ncam Server
 
 on:
   schedule:
-    - cron: '30 0 * * *' # غايخدم كل نهار مع 12:30 ليل
-  workflow_dispatch: # تقدر تخدمو يدوياً من GitHub
+    - cron: '0 1 * * *' # يشتغل تلقائياً كل يوم مع الواحدة صباحاً
+  workflow_dispatch:   # يسمح لك بتشغيله يدوياً من زر Actions
 
 jobs:
-  scrape:
+  build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -17,18 +18,20 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install Selenium and Chrome
+      - name: Install Chrome and Selenium
         run: |
-          pip install selenium
-          sudo apt-get install google-chrome-stable
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          pip install selenium webdriver-manager
 
-      - name: Run Scraper
+      - name: Run Scraper Script
         run: python scraper.py
 
-      - name: Commit and Push
+      - name: Commit and Push Changes
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           git add ncam.server
-          git commit -m "Update ncam.server $(date)" || exit 0
+          # سيقوم بالتحديث فقط إذا وجد تغييرات في الملف
+          git commit -m "Update ncam.server - $(date +'%Y-%m-%d %H:%M')" || exit 0
           git push
