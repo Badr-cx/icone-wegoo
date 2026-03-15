@@ -1,12 +1,12 @@
-name: Auto Update Ncam Server
+name: Update Ncam via Tor Proxy
 
 on:
   schedule:
-    - cron: '0 1 * * *' # يشتغل تلقائياً كل يوم مع الواحدة صباحاً
-  workflow_dispatch:   # يسمح لك بتشغيله يدوياً من زر Actions
+    - cron: '15 0 * * *' # كايخدم مع 00:15 كل ليلة
+  workflow_dispatch:   # تقدر تخدمو بيديك وقتما بغيتي
 
 jobs:
-  build:
+  scrape-with-tor:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,20 +18,29 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install Chrome and Selenium
+      - name: Install Tor and Chrome
         run: |
           sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
-          pip install selenium webdriver-manager
+          sudo apt-get install -y tor google-chrome-stable
+          # تشغيل خدمة Tor فـ الخلفية
+          sudo service tor start
+          # تسنى 10 ثواني باش Tor يربط الاتصال
+          sleep 10
+          # تأكيد أن Tor خدام (اختياري)
+          curl --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/ | grep -q "Congratulations" && echo "Tor is UP" || echo "Tor is DOWN"
 
-      - name: Run Scraper Script
+      - name: Install Libraries
+        run: |
+          pip install selenium webdriver-manager PySocks
+
+      - name: Run Scraper
         run: python scraper.py
 
-      - name: Commit and Push Changes
+      - name: Commit and Push
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add ncam.server
-          # سيقوم بالتحديث فقط إذا وجد تغييرات في الملف
-          git commit -m "Update ncam.server - $(date +'%Y-%m-%d %H:%M')" || exit 0
+          # التحديث غيتم غير يلا كان السطر جديد
+          git commit -m "Update ncam.server via Tor - $(date)" || exit 0
           git push
