@@ -1,6 +1,5 @@
-
 [reader]
-label                         = CCCam_Free_Auto
+label                         = CCCam_Scrapy_Tor
 protocol                      = cccam
 device                        = free.cccamia.com,18000
 user                          = 4id39r
