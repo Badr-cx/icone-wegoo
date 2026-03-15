@@ -1,0 +1,10 @@
+
+[reader]
+label                         = CCCam_Free_Auto
+protocol                      = cccam
+device                        = free.cccamia.com,18000
+user                          = 4id39r
+password                      = CCcamia.com</div>
+group                         = 1
+cccversion                    = 2.3.2
+ccckeepalive                  = 1
