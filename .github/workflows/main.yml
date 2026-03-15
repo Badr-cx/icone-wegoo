@@ -1,12 +1,12 @@
-name: Update Ncam via Tor Proxy
+name: Scrapy Update via Tor
 
 on:
   schedule:
-    - cron: '15 0 * * *' # كايخدم مع 00:15 كل ليلة
-  workflow_dispatch:   # تقدر تخدمو بيديك وقتما بغيتي
+    - cron: '30 0 * * *' # كايخدم كل نهار مع 00:30
+  workflow_dispatch:   # تشغيل يدوي
 
 jobs:
-  scrape-with-tor:
+  run-scrapy:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,29 +18,30 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install Tor and Chrome
+      - name: Install Tor and Privoxy
         run: |
           sudo apt-get update
-          sudo apt-get install -y tor google-chrome-stable
-          # تشغيل خدمة Tor فـ الخلفية
+          sudo apt-get install -y tor privoxy
+          # إعداد Privoxy باش يصيفط الترافيك لـ Tor (SOCKS5)
+          echo "forward-socks5t / 127.0.0.1:9050 ." | sudo tee -a /etc/privoxy/config
           sudo service tor start
-          # تسنى 10 ثواني باش Tor يربط الاتصال
-          sleep 10
-          # تأكيد أن Tor خدام (اختياري)
-          curl --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/ | grep -q "Congratulations" && echo "Tor is UP" || echo "Tor is DOWN"
+          sudo service privoxy restart
+          sleep 10 # وقت كافي للربط
 
-      - name: Install Libraries
-        run: |
-          pip install selenium webdriver-manager PySocks
+      - name: Install Scrapy
+        run: pip install scrapy
 
-      - name: Run Scraper
+      - name: Run Scrapy Spider
         run: python scraper.py
+        env:
+          # البروكسي ديال Privoxy اللي غايدوز من Tor
+          http_proxy: "http://127.0.0.1:8118"
+          https_proxy: "http://127.0.0.1:8118"
 
-      - name: Commit and Push
+      - name: Commit and Push Changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add ncam.server
-          # التحديث غيتم غير يلا كان السطر جديد
-          git commit -m "Update ncam.server via Tor - $(date)" || exit 0
+          git commit -m "Update ncam.server via Scrapy/Tor - $(date)" || exit 0
           git push
