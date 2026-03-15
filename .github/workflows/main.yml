@@ -1,19 +1,15 @@
 name: Update Ncam Server
 
 on:
-  push:
-    branches:
-      - main
   schedule:
-    - cron: '0 */6 * * *' # كايخدم بوحدو كل 6 سوايع
-  workflow_dispatch:      # بوطون باش تخدمو يدويّاً وقتما بغيتي
+    - cron: '30 0 * * *' # غايخدم كل نهار مع 12:30 ليل
+  workflow_dispatch: # تقدر تخدمو يدوياً من GitHub
 
 jobs:
-  build:
+  scrape:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -21,17 +17,18 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Run Scraper and Decoder
+      - name: Install Selenium and Chrome
+        run: |
+          pip install selenium
+          sudo apt-get install google-chrome-stable
+
+      - name: Run Scraper
         run: python scraper.py
 
-      - name: Commit and Push changes
+      - name: Commit and Push
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
           git add ncam.server
-          
-          # هاد السطر هو "الفكاك" ديال المشكل
-          # كايشوف واش كاين شي تغيير، إيلا ماكاينش كايخرج بسلام بلا Error
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto Update: $(date +'%Y-%m-%d %H:%M')" && git push)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git commit -m "Update ncam.server $(date)" || exit 0
+          git push
